@@ -37,8 +37,9 @@ const onLogin = async () => {
     ElMessage.success('登录成功')
     router.push('/admin');
   } catch (e) {
-    ElMessage.error('登录失败')
-    // ElMessage.error(e.response?.data?.detail || '登录失败');
+    // 显示后端返回的具体错误信息
+    const errorMessage = e.response?.data?.detail || '登录失败，请稍后重试';
+    ElMessage.error(errorMessage);
   } finally {
     loading.value = false;
   }

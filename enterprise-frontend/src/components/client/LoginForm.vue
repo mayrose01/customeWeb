@@ -298,14 +298,23 @@ export default {
         emit('login-success', data.user)
         
         // 显示成功消息
-        alert('登录成功！')
+        if (typeof window !== 'undefined' && window.ElMessage) {
+          window.ElMessage.success('登录成功！')
+        } else {
+          alert('登录成功！')
+        }
         
         // 跳转到指定页面
         router.push(props.redirectTo)
       } catch (error) {
         console.error('登录失败:', error)
         const errorMessage = error.response?.data?.detail || '登录失败，请检查用户名和密码'
-        alert(errorMessage)
+        // 使用更友好的错误提示
+        if (typeof window !== 'undefined' && window.ElMessage) {
+          window.ElMessage.error(errorMessage)
+        } else {
+          alert(errorMessage)
+        }
       } finally {
         loading.value = false
       }
@@ -316,12 +325,20 @@ export default {
       
       // 验证密码
       if (registerForm.password !== registerForm.confirmPassword) {
-        alert('两次输入的密码不一致')
+        if (typeof window !== 'undefined' && window.ElMessage) {
+          window.ElMessage.error('两次输入的密码不一致')
+        } else {
+          alert('两次输入的密码不一致')
+        }
         return
       }
       
       if (registerForm.password.length < 6) {
-        alert('密码长度至少6位')
+        if (typeof window !== 'undefined' && window.ElMessage) {
+          window.ElMessage.error('密码长度至少6位')
+        } else {
+          alert('密码长度至少6位')
+        }
         return
       }
       
@@ -345,13 +362,21 @@ export default {
           localStorage.setItem('client_user', JSON.stringify(loginData.user))
           userStore.setUserInfo(loginData.user)
           
-          alert('注册成功！已自动登录')
+          if (typeof window !== 'undefined' && window.ElMessage) {
+            window.ElMessage.success('注册成功！已自动登录')
+          } else {
+            alert('注册成功！已自动登录')
+          }
           
           // 跳转到个人中心页面
           router.push('/profile')
         } catch (loginError) {
           console.error('自动登录失败:', loginError)
-          alert('注册成功！请手动登录')
+          if (typeof window !== 'undefined' && window.ElMessage) {
+            window.ElMessage.success('注册成功！请手动登录')
+          } else {
+            alert('注册成功！请手动登录')
+          }
           switchToLogin()
         }
         
@@ -362,7 +387,12 @@ export default {
       } catch (error) {
         console.error('注册失败:', error)
         const errorMessage = error.response?.data?.detail || '注册失败，请稍后重试'
-        alert(errorMessage)
+        // 使用更友好的错误提示
+        if (typeof window !== 'undefined' && window.ElMessage) {
+          window.ElMessage.error(errorMessage)
+        } else {
+          alert(errorMessage)
+        }
       } finally {
         loading.value = false
       }

@@ -5,9 +5,18 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "build:test": "vite build --mode test",
+    "build:prod": "vite build --mode production",
     "preview": "vite preview",
     "dev": "concurrently \"cd ../enterprise-backend && python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\" \"npm run vite\"",
-    "vite": "vite"
+    "vite": "vite",
+    "env:dev": "./scripts/switch-env.sh development",
+    "env:test": "./scripts/switch-env.sh test",
+    "env:prod": "./scripts/switch-env.sh production",
+    "deploy:dev": "npm run env:dev && npm run build:dev",
+    "deploy:test": "npm run env:test && npm run build:test",
+    "deploy:prod": "npm run env:prod && npm run build:prod"
   },
   "dependencies": {
     "@wangeditor/editor": "^5.1.23",

@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
+import { API_BASE_URL } from '../../env.config.js';
 
 const instance = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: API_BASE_URL,
   timeout: 10000,
 });
 

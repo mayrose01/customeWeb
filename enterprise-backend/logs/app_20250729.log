@@ -12267,3 +12267,50 @@ FROM company_info
 2025-07-29 21:05:53,118 - sqlalchemy.engine.Engine - INFO - [cached since 2975s ago] {'param_1': 1}
 2025-07-29 21:05:53,120 - sqlalchemy.engine.Engine - INFO - ROLLBACK
 2025-07-29 21:05:53,120 - app.main - INFO - API请求完成: GET /api/company/ - 状态码: 200 - 处理时间: 0.003秒
+2025-07-29 23:45:10,632 - app.main - INFO - API请求开始: GET /api/company/ - 客户端: 127.0.0.1
+2025-07-29 23:45:10,634 - app.main - INFO - API请求开始: GET /api/category/ - 客户端: 127.0.0.1
+2025-07-29 23:45:10,634 - app.main - INFO - API请求开始: GET /api/carousel/client - 客户端: 127.0.0.1
+2025-07-29 23:45:10,634 - app.main - INFO - API请求开始: GET /api/service/client - 客户端: 127.0.0.1
+2025-07-29 23:45:10,644 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,644 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,645 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,646 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,647 - sqlalchemy.engine.Engine - INFO - SELECT company_info.id AS company_info_id, company_info.name AS company_info_name, company_info.logo_url AS company_info_logo_url, company_info.email AS company_info_email, company_info.phone AS company_info_phone, company_info.address AS company_info_address, company_info.working_hours AS company_info_working_hours, company_info.company_image AS company_info_company_image, company_info.main_business AS company_info_main_business, company_info.main_pic_url AS company_info_main_pic_url, company_info.about_text AS company_info_about_text 
+FROM company_info 
+ LIMIT %(param_1)s
+2025-07-29 23:45:10,647 - sqlalchemy.engine.Engine - INFO - SELECT category.id AS category_id, category.name AS category_name, category.parent_id AS category_parent_id, category.image AS category_image, category.sort_order AS category_sort_order 
+FROM category
+2025-07-29 23:45:10,648 - sqlalchemy.engine.Engine - INFO - SELECT carousel_images.id AS carousel_images_id, carousel_images.image_url AS carousel_images_image_url, carousel_images.caption AS carousel_images_caption, carousel_images.description AS carousel_images_description, carousel_images.sort_order AS carousel_images_sort_order, carousel_images.is_active AS carousel_images_is_active 
+FROM carousel_images 
+WHERE carousel_images.is_active = %(is_active_1)s ORDER BY carousel_images.sort_order
+2025-07-29 23:45:10,648 - sqlalchemy.engine.Engine - INFO - SELECT services.id AS services_id, services.name AS services_name, services.description AS services_description, services.image_url AS services_image_url, services.sort_order AS services_sort_order, services.is_active AS services_is_active 
+FROM services 
+WHERE services.is_active = %(is_active_1)s ORDER BY services.sort_order
+2025-07-29 23:45:10,648 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {'param_1': 1}
+2025-07-29 23:45:10,648 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {}
+2025-07-29 23:45:10,648 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {'is_active_1': 1}
+2025-07-29 23:45:10,649 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {'is_active_1': 1}
+2025-07-29 23:45:10,720 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,723 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,723 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,723 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,726 - app.main - INFO - API请求完成: GET /api/category/ - 状态码: 200 - 处理时间: 0.092秒
+2025-07-29 23:45:10,727 - app.main - INFO - API请求完成: GET /api/company/ - 状态码: 200 - 处理时间: 0.095秒
+2025-07-29 23:45:10,728 - app.main - INFO - API请求完成: GET /api/service/client - 状态码: 200 - 处理时间: 0.093秒
+2025-07-29 23:45:10,728 - app.main - INFO - API请求完成: GET /api/carousel/client - 状态码: 200 - 处理时间: 0.094秒
+2025-07-29 23:45:10,729 - app.main - INFO - API请求开始: GET /api/company/ - 客户端: 127.0.0.1
+2025-07-29 23:45:10,730 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,730 - sqlalchemy.engine.Engine - INFO - SELECT company_info.id AS company_info_id, company_info.name AS company_info_name, company_info.logo_url AS company_info_logo_url, company_info.email AS company_info_email, company_info.phone AS company_info_phone, company_info.address AS company_info_address, company_info.working_hours AS company_info_working_hours, company_info.company_image AS company_info_company_image, company_info.main_business AS company_info_main_business, company_info.main_pic_url AS company_info_main_pic_url, company_info.about_text AS company_info_about_text 
+FROM company_info 
+ LIMIT %(param_1)s
+2025-07-29 23:45:10,730 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {'param_1': 1}
+2025-07-29 23:45:10,732 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,732 - app.main - INFO - API请求完成: GET /api/company/ - 状态码: 200 - 处理时间: 0.004秒
+2025-07-29 23:45:10,733 - app.main - INFO - API请求开始: GET /api/company/ - 客户端: 127.0.0.1
+2025-07-29 23:45:10,734 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-07-29 23:45:10,734 - sqlalchemy.engine.Engine - INFO - SELECT company_info.id AS company_info_id, company_info.name AS company_info_name, company_info.logo_url AS company_info_logo_url, company_info.email AS company_info_email, company_info.phone AS company_info_phone, company_info.address AS company_info_address, company_info.working_hours AS company_info_working_hours, company_info.company_image AS company_info_company_image, company_info.main_business AS company_info_main_business, company_info.main_pic_url AS company_info_main_pic_url, company_info.about_text AS company_info_about_text 
+FROM company_info 
+ LIMIT %(param_1)s
+2025-07-29 23:45:10,734 - sqlalchemy.engine.Engine - INFO - [cached since 1.254e+04s ago] {'param_1': 1}
+2025-07-29 23:45:10,736 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-07-29 23:45:10,736 - app.main - INFO - API请求完成: GET /api/company/ - 状态码: 200 - 处理时间: 0.003秒
