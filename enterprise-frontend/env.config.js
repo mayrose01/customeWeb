@@ -8,7 +8,7 @@ const envConfig = {
   
   // 测试环境
   test: {
-    API_BASE_URL: 'http://test.catusfoto.top/api',
+    API_BASE_URL: 'http://localhost:8001/api',
     APP_ENV: 'test'
   },
   
@@ -26,9 +26,15 @@ const getCurrentEnv = () => {
     return import.meta.env.VITE_APP_ENV;
   }
   
-  // 根据域名判断环境
+  // 根据域名和端口判断环境
   const hostname = window.location.hostname;
+  const port = window.location.port;
+  
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // 如果是端口3001，则认为是测试环境
+    if (port === '3001') {
+      return 'test';
+    }
     return 'development';
   } else if (hostname.includes('test.')) {
     return 'test';

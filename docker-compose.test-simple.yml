@@ -1,0 +1,25 @@
+services:
+  # 测试环境MySQL数据库
+  mysql_test:
+    image: mysql:8.0
+    container_name: enterprise_mysql_test
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: testpassword
+      MYSQL_DATABASE: enterprise_db
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - enterprise_test_network
+
+volumes:
+  mysql_test_data:
+
+networks:
+  enterprise_test_network:
+    driver: bridge 

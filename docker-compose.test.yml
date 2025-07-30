@@ -1,0 +1,89 @@
+services:
+  # 测试环境MySQL数据库
+  mysql_test:
+    image: mysql:8.0
+    container_name: enterprise_mysql_test
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: testpassword
+      MYSQL_DATABASE: enterprise_test_db
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "3307:3306"  # 使用不同端口避免冲突
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - enterprise_test_network
+
+  # 测试环境后端API服务
+  backend_test:
+    build:
+      context: ./enterprise-backend
+      dockerfile: Dockerfile
+    container_name: enterprise_backend_test
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql://test_user:test_password@mysql_test:3306/enterprise_test_db
+      - SECRET_KEY=test-secret-key-2024
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - CORS_ORIGINS=["http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=your-email@gmail.com
+      - SMTP_PASSWORD=your-app-password
+      - UPLOAD_DIR=uploads_test
+      - MAX_FILE_SIZE=2097152
+      - LOG_LEVEL=DEBUG
+      - LOG_FILE=logs/app_test.log
+    ports:
+      - "8001:8000"  # 使用不同端口避免冲突
+    volumes:
+      - ./enterprise-backend/uploads_test:/app/uploads
+      - ./enterprise-backend/logs:/app/logs
+    depends_on:
+      - mysql_test
+    networks:
+      - enterprise_test_network
+
+  # 测试环境前端服务
+  frontend_test:
+    build:
+      context: ./enterprise-frontend
+      dockerfile: Dockerfile
+    container_name: enterprise_frontend_test
+    restart: unless-stopped
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8001
+    ports:
+      - "3001:80"  # 使用不同端口避免冲突
+    depends_on:
+      - backend_test
+    networks:
+      - enterprise_test_network
+
+  # 测试环境Nginx反向代理
+  nginx_test:
+    image: nginx:alpine
+    container_name: enterprise_nginx_test
+    restart: unless-stopped
+    ports:
+      - "8080:80"  # 使用不同端口避免冲突
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.test.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend_test
+      - backend_test
+    networks:
+      - enterprise_test_network
+
+volumes:
+  mysql_test_data:
+
+networks:
+  enterprise_test_network:
+    driver: bridge 
