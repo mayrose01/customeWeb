@@ -79,6 +79,7 @@ import { useRouter } from 'vue-router'
 import { createInquiry } from '@/api/inquiry'
 import { getImageUrl } from '@/utils/imageUtils'
 import { userStore } from '@/store/user'
+import { API_BASE_URL } from '../../../env.config.js'
 
 export default {
   name: 'InquiryModal',
@@ -167,7 +168,7 @@ export default {
         }
 
         // 使用支持用户关联的API
-        const response = await fetch('http://localhost:8000/api/inquiry/with-user', {
+        const response = await fetch(`${API_BASE_URL}/inquiry/with-user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

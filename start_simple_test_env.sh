@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# 简化测试环境启动脚本
-echo "🚀 启动简化测试环境..."
+# 测试环境启动脚本
+# 使用独立的数据库和端口，避免与开发环境冲突
+
+echo "🚀 启动测试环境..."
 
 # 检查Docker是否运行
 if ! docker info > /dev/null 2>&1; then
@@ -9,133 +11,103 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# 创建必要的目录
-echo "📁 创建必要的目录..."
-mkdir -p enterprise-backend/uploads_test
-mkdir -p enterprise-backend/logs
-
 # 停止并删除现有的测试容器
-echo "🧹 清理现有测试容器..."
-docker-compose -f docker-compose.test-simple.yml down -v
+echo "🛑 清理现有测试容器..."
+docker-compose -f docker-compose.test.yml down -v 2>/dev/null || true
 
-# 启动MySQL数据库
-echo "🗄️ 启动MySQL数据库..."
-docker-compose -f docker-compose.test-simple.yml up -d mysql_test
+# 启动测试环境
+echo "🔧 启动测试环境服务..."
+docker-compose -f docker-compose.test.yml up -d
 
 # 等待MySQL启动
 echo "⏳ 等待MySQL启动..."
-sleep 30
+sleep 10
 
-# 检查MySQL状态
-echo "🔍 检查MySQL状态..."
-if docker exec enterprise_mysql_test mysql -u test_user -ptest_password -e "SELECT 1;" > /dev/null 2>&1; then
-    echo "✅ MySQL数据库启动成功"
-else
-    echo "❌ MySQL数据库启动失败"
-    exit 1
-fi
+# 检查MySQL连接
+echo "🔍 检查数据库连接..."
+for i in {1..30}; do
+    if docker exec enterprise_mysql_test mysql -u test_user -ptest_password -e "SELECT 1;" > /dev/null 2>&1; then
+        echo "✅ MySQL连接成功"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "❌ MySQL连接失败"
+        exit 1
+    fi
+    sleep 2
+done
+
+# 初始化数据库
+echo "🗄️ 初始化数据库..."
+docker exec -i enterprise_mysql_test mysql -u test_user -ptest_password enterprise_test < mysql/init.sql
+
+# 设置环境变量
+export ENV=test
+export DATABASE_URL="mysql+pymysql://test_user:test_password@localhost:3307/enterprise_test"
 
 # 启动后端服务
 echo "🔧 启动后端服务..."
 cd enterprise-backend
 
-# 检查虚拟环境
-if [ ! -d ".venv" ]; then
-    echo "📦 创建Python虚拟环境..."
-    python3 -m venv .venv
+# 激活虚拟环境（如果存在）
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
 fi
-
-# 激活虚拟环境
-source .venv/bin/activate
 
 # 安装依赖
 echo "📦 安装Python依赖..."
 pip install -r requirements.txt
 
-# 设置环境变量
-export DATABASE_URL="mysql+pymysql://test_user:test_password@localhost:3307/enterprise_test_db"
-export SECRET_KEY="test_enterprise_secret_key_2024"
-export ALGORITHM="HS256"
-export ACCESS_TOKEN_EXPIRE_MINUTES="1440"
-export CORS_ORIGINS='["http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]'
-export UPLOAD_DIR="uploads_test"
-export MAX_FILE_SIZE="2097152"
-export LOG_LEVEL="DEBUG"
-export LOG_FILE="logs/app_test.log"
-
-# 启动后端服务（后台运行）
-echo "🚀 启动后端API服务 (端口: 8001)..."
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload > ../logs/backend_test.log 2>&1 &
+# 启动后端
+echo "🚀 启动后端服务 (端口: 8001)..."
+ENV=test python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001 &
 BACKEND_PID=$!
-echo $BACKEND_PID > ../logs/backend_test.pid
 
-cd ..
+# 等待后端启动
+sleep 5
 
 # 启动前端服务
-echo "🌐 启动前端服务..."
-cd enterprise-frontend
+echo "🚀 启动前端服务..."
+cd ../enterprise-frontend
 
 # 安装依赖
-echo "📦 安装Node.js依赖..."
+echo "📦 安装前端依赖..."
 npm install
 
 # 设置环境变量
-export VITE_API_BASE_URL="http://localhost:8001"
+export VITE_API_BASE_URL=http://localhost:8001
 
-# 启动前端服务（后台运行）
+# 启动前端
 echo "🚀 启动前端服务 (端口: 3001)..."
-npm run dev -- --port 3001 > ../logs/frontend_test.log 2>&1 &
+npm run dev -- --port 3001 &
 FRONTEND_PID=$!
-echo $FRONTEND_PID > ../logs/frontend_test.pid
-
-cd ..
 
 # 等待服务启动
-echo "⏳ 等待服务启动..."
-sleep 15
+sleep 10
 
-# 检查服务状态
-echo "🔍 检查服务状态..."
-
-# 检查后端服务
-if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-    echo "✅ 后端服务启动成功"
-else
-    echo "❌ 后端服务启动失败，查看日志: logs/backend_test.log"
-fi
-
-# 检查前端服务
-if curl -s http://localhost:3001 > /dev/null 2>&1; then
-    echo "✅ 前端服务启动成功"
-else
-    echo "❌ 前端服务启动失败，查看日志: logs/frontend_test.log"
-fi
-
-# 显示访问信息
+# 显示服务信息
 echo ""
-echo "✅ 简化测试环境启动完成！"
+echo "🎉 测试环境启动完成！"
 echo ""
-echo "📋 访问信息："
-echo "   🌐 前端应用: http://localhost:3001"
-echo "   🔧 后端API: http://localhost:8001"
-echo "   📚 API文档: http://localhost:8001/docs"
-echo "   🗄️  MySQL数据库: localhost:3307"
-echo ""
-echo "📊 数据库信息："
-echo "   数据库名: enterprise_test_db"
-echo "   用户名: test_user"
-echo "   密码: test_password"
-echo "   端口: 3307"
+echo "📋 服务信息："
+echo "   - 前端: http://localhost:3001"
+echo "   - 后端: http://localhost:8001"
+echo "   - 数据库: localhost:3307"
+echo "   - 数据库名: enterprise_test"
+echo "   - 数据库用户: test_user"
+echo "   - 数据库密码: test_password"
 echo ""
 echo "🔧 管理命令："
-echo "   查看后端日志: tail -f logs/backend_test.log"
-echo "   查看前端日志: tail -f logs/frontend_test.log"
-echo "   停止服务: ./stop_simple_test_env.sh"
-echo "   查看MySQL日志: docker logs enterprise_mysql_test"
+echo "   - 停止服务: ./stop_simple_test_env.sh"
+echo "   - 查看日志: docker logs enterprise_backend_test"
+echo "   - 数据库连接: mysql -h localhost -P 3307 -u test_user -ptest_password enterprise_test"
 echo ""
-echo "📝 测试环境特点："
-echo "   - MySQL使用Docker容器"
-echo "   - 后端和前端使用本地服务"
-echo "   - 使用独立的数据库和端口"
-echo "   - 便于调试和开发"
-echo "" 
+echo "⚠️  注意："
+echo "   - 使用独立的数据库 (enterprise_test)"
+echo "   - 使用独立的端口 (3001, 8001, 3307)"
+echo "   - 数据与开发环境完全隔离"
+echo ""
+
+# 等待用户中断
+echo "按 Ctrl+C 停止所有服务..."
+wait 

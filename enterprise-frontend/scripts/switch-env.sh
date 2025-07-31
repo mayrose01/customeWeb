@@ -1,131 +1,76 @@
 #!/bin/bash
 
 # 环境切换脚本
-# 用法: ./scripts/switch-env.sh [development|test|production]
+# 用于在不同环境间切换配置
 
 set -e
 
 # 颜色定义
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-# 日志函数
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+# 检查参数
+if [ $# -eq 0 ]; then
+    echo -e "${RED}错误: 请指定环境${NC}"
+    echo -e "${YELLOW}用法: $0 [development|test|production]${NC}"
+    echo -e "${YELLOW}可用环境:${NC}"
+    echo -e "${YELLOW}  development - 本地开发环境 (http://localhost)${NC}"
+    echo -e "${YELLOW}  test        - 测试环境 (http://test.catusfoto.top)${NC}"
+    echo -e "${YELLOW}  production  - 生产环境 (https://catusfoto.top)${NC}"
+    exit 1
+fi
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+ENV=$1
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# 验证环境参数
+if [[ ! "$ENV" =~ ^(development|test|production)$ ]]; then
+    echo -e "${RED}错误: 无效的环境参数 '${ENV}'${NC}"
+    echo -e "${YELLOW}可用环境: development, test, production${NC}"
+    exit 1
+fi
 
-log_step() {
-    echo -e "${BLUE}[STEP]${NC} $1"
-}
+echo -e "${GREEN}切换到 ${ENV} 环境...${NC}"
 
-# 获取环境配置
-get_env_config() {
-    local env_name=$1
-    
-    case "$env_name" in
-        "development")
-            echo "http://localhost:8000/api"
-            ;;
-        "test")
-            echo "http://test.catusfoto.top/api"
-            ;;
-        "production")
-            echo "https://catusfoto.top/api"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
+# 根据环境设置配置
+case $ENV in
+    "development")
+        echo -e "${YELLOW}配置开发环境...${NC}"
+        export VITE_APP_ENV=development
+        export VITE_API_BASE_URL=http://localhost:8000/api
+        export VITE_APP_PORT=80
+        export VITE_APP_HOST=localhost
+        echo -e "${GREEN}开发环境配置完成!${NC}"
+        echo -e "${GREEN}访问地址: http://localhost${NC}"
+        echo -e "${GREEN}API地址: http://localhost:8000/api${NC}"
+        ;;
+    "test")
+        echo -e "${YELLOW}配置测试环境...${NC}"
+        export VITE_APP_ENV=test
+        export VITE_API_BASE_URL=http://test.catusfoto.top:8000/api
+        export VITE_APP_PORT=80
+        export VITE_APP_HOST=test.catusfoto.top
+        echo -e "${GREEN}测试环境配置完成!${NC}"
+        echo -e "${GREEN}访问地址: http://test.catusfoto.top${NC}"
+        echo -e "${GREEN}API地址: http://test.catusfoto.top:8000/api${NC}"
+        echo -e "${YELLOW}注意: 确保hosts文件包含 test.catusfoto.top 映射${NC}"
+        ;;
+    "production")
+        echo -e "${YELLOW}配置生产环境...${NC}"
+        export VITE_APP_ENV=production
+        export VITE_API_BASE_URL=https://catusfoto.top/api
+        export VITE_APP_PORT=443
+        export VITE_APP_HOST=catusfoto.top
+        echo -e "${GREEN}生产环境配置完成!${NC}"
+        echo -e "${GREEN}访问地址: https://catusfoto.top${NC}"
+        echo -e "${GREEN}API地址: https://catusfoto.top/api${NC}"
+        ;;
+esac
 
-# 显示帮助信息
-show_help() {
-    echo "环境切换脚本"
-    echo ""
-    echo "用法: $0 [environment]"
-    echo ""
-    echo "可用环境:"
-    echo "  development - http://localhost:8000/api"
-    echo "  test - http://test.catusfoto.top/api"
-    echo "  production - https://catusfoto.top/api"
-    echo ""
-    echo "示例:"
-    echo "  $0 development"
-    echo "  $0 production"
-}
-
-# 切换环境
-switch_environment() {
-    local env_name=$1
-    
-    log_step "切换到 $env_name 环境..."
-    
-    # 获取API URL
-    local api_url=$(get_env_config "$env_name")
-    if [[ -z "$api_url" ]]; then
-        log_error "未知环境: $env_name"
-        show_help
-        exit 1
-    fi
-    
-    # 创建 .env.local 文件
-    cat > .env.local << EOF
-# 环境变量配置 - $env_name
-VITE_APP_ENV=$env_name
-VITE_API_BASE_URL=$api_url
-VITE_APP_TITLE=企业网站管理系统
-EOF
-    
-    log_info "环境配置已更新:"
-    echo "  环境: $env_name"
-    echo "  API URL: $api_url"
-    echo "  配置文件: .env.local"
-    
-    # 如果是开发环境，启动开发服务器
-    if [[ "$env_name" == "development" ]]; then
-        log_info "启动开发服务器..."
-        npm run dev
-    else
-        log_info "请运行以下命令构建项目:"
-        echo "  npm run build"
-    fi
-}
-
-# 主函数
-main() {
-    if [[ $# -eq 0 ]]; then
-        log_error "请指定环境名称"
-        show_help
-        exit 1
-    fi
-    
-    local env_name=$1
-    
-    case "$env_name" in
-        -h|--help)
-            show_help
-            ;;
-        development|test|production)
-            switch_environment "$env_name"
-            ;;
-        *)
-            log_error "无效的环境名称: $env_name"
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-# 执行主函数
-main "$@" 
+echo -e "${GREEN}环境切换完成!${NC}"
+echo -e "${YELLOW}当前环境变量:${NC}"
+echo -e "${YELLOW}  VITE_APP_ENV=${VITE_APP_ENV}${NC}"
+echo -e "${YELLOW}  VITE_API_BASE_URL=${VITE_API_BASE_URL}${NC}"
+echo -e "${YELLOW}  VITE_APP_PORT=${VITE_APP_PORT}${NC}"
+echo -e "${YELLOW}  VITE_APP_HOST=${VITE_APP_HOST}${NC}" 

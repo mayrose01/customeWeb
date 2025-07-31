@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: testpassword
-      MYSQL_DATABASE: enterprise_test_db
+      MYSQL_DATABASE: enterprise_test
       MYSQL_USER: test_user
       MYSQL_PASSWORD: test_password
     ports:
@@ -25,11 +25,11 @@ services:
     container_name: enterprise_backend_test
     restart: unless-stopped
     environment:
-      - DATABASE_URL=mysql://test_user:test_password@mysql_test:3306/enterprise_test_db
+      - DATABASE_URL=mysql://test_user:test_password@mysql_test:3306/enterprise_test
       - SECRET_KEY=test-secret-key-2024
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=["http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
+      - CORS_ORIGINS=["http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://test.catusfoto.top:3001", "http://test.catusfoto.top"]
       - SMTP_SERVER=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_USERNAME=your-email@gmail.com
@@ -56,7 +56,7 @@ services:
     container_name: enterprise_frontend_test
     restart: unless-stopped
     environment:
-      - VITE_API_BASE_URL=http://localhost:8001
+      - VITE_API_BASE_URL=http://test.catusfoto.top:8001/api
     ports:
       - "3001:80"  # 使用不同端口避免冲突
     depends_on:

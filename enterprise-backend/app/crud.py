@@ -235,6 +235,10 @@ def get_all_products_for_client(db: Session, category_id: Optional[int] = None, 
     
     return query.all()
 
+def get_client_products(db: Session) -> List[models.Product]:
+    """获取客户端产品列表（简化版）"""
+    return get_all_products_for_client(db)
+
 def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) -> Optional[models.Product]:
     product = get_product(db, product_id)
     if not product:
@@ -450,6 +454,10 @@ def get_carousel_images(db: Session, active_only: bool = True) -> List[models.Ca
         query = query.filter(models.CarouselImage.is_active == 1)
     return query.order_by(models.CarouselImage.sort_order).all()
 
+def get_carousel_admin(db: Session) -> List[models.CarouselImage]:
+    """获取轮播图列表（后台管理，不限制激活状态）"""
+    return db.query(models.CarouselImage).order_by(models.CarouselImage.sort_order).all()
+
 def create_carousel_image(db: Session, data: schemas.CarouselImageCreate) -> models.CarouselImage:
     """创建轮播图"""
     carousel_image = models.CarouselImage(**data.dict())
@@ -571,6 +579,10 @@ def get_services(db: Session, active_only: bool = True) -> List[models.Service]:
         query = query.filter(models.Service.is_active == 1)
     return query.order_by(models.Service.sort_order).all()
 
+def get_services_admin(db: Session) -> List[models.Service]:
+    """获取服务列表（后台管理，不限制激活状态）"""
+    return db.query(models.Service).order_by(models.Service.sort_order).all()
+
 def create_service(db: Session, data: schemas.ServiceCreate) -> models.Service:
     """创建主营业务"""
     service = models.Service(**data.dict())
@@ -618,6 +630,35 @@ def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
 def get_user_by_phone(db: Session, phone: str) -> Optional[models.User]:
     """通过手机号获取用户"""
     return db.query(models.User).filter(models.User.phone == phone).first()
+
+def authenticate_user(db: Session, username: str, password: str) -> Optional[models.User]:
+    """管理员用户登录验证"""
+    # 尝试通过用户名、邮箱或手机号查找用户
+    user = get_user_by_username(db, username)
+    if not user:
+        user = get_user_by_email(db, username)
+    if not user:
+        user = get_user_by_phone(db, username)
+    
+    if not user:
+        logger.warning(f"用户不存在: {username}")
+        return None
+    
+    if not verify_password(password, user.password_hash):
+        logger.warning(f"密码错误: {username}")
+        return None
+    
+    if user.status != 1 and user.status != '1':
+        logger.warning(f"用户已被禁用: {username}")
+        return None
+    
+    # 检查用户角色是否为管理员
+    if user.role != 'admin':
+        logger.warning(f"用户不是管理员: {username}, 角色={user.role}")
+        return None
+    
+    logger.info(f"管理员用户登录成功: {username}")
+    return user
 
 def authenticate_client_user(db: Session, username: str, password: str) -> Optional[models.User]:
     """客户端用户登录验证"""

@@ -119,12 +119,14 @@
 import { ref, onMounted, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getCategories, createCategory, updateCategory, deleteCategory as delCategory } from '../api/category';
+import { API_BASE_URL, UPLOAD_PATH } from '../../env.config.js';
+import { getImageUrl } from '../utils/imageUtils';
 
 const categories = ref([]);
 const showAdd = ref(false);
 const saving = ref(false);
 const deleteConfirmId = ref(null);
-const uploadUrl = 'http://localhost:8000/api/upload/';
+  const uploadUrl = `${API_BASE_URL}/upload/`;
 
 const editForm = ref({ 
   id: null, 
@@ -272,7 +274,7 @@ const beforeImageUpload = (file) => {
 };
 
 const handleImageSuccess = (response) => {
-  editForm.value.image = `http://localhost:8000${response.url}`;
+  editForm.value.image = getImageUrl(response.url);
   ElMessage.success('图片上传成功');
 };
 

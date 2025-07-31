@@ -5,35 +5,35 @@
         <h3>企业后台管理系统</h3>
       </div>
       <el-menu :default-active="activeMenu" router class="sidebar-menu">
-        <el-menu-item index="/admin/company">
+        <el-menu-item :index="getMenuPath('/admin/company')">
           <el-icon><Document /></el-icon>
           <span>公司信息</span>
         </el-menu-item>
-        <el-menu-item index="/admin/carousel">
+        <el-menu-item :index="getMenuPath('/admin/carousel')">
           <el-icon><Picture /></el-icon>
           <span>轮播图管理</span>
         </el-menu-item>
-        <el-menu-item index="/admin/service">
+        <el-menu-item :index="getMenuPath('/admin/service')">
           <el-icon><Star /></el-icon>
           <span>业务板块</span>
         </el-menu-item>
-        <el-menu-item index="/admin/category">
+        <el-menu-item :index="getMenuPath('/admin/category')">
           <el-icon><Menu /></el-icon>
           <span>分类管理</span>
         </el-menu-item>
-        <el-menu-item index="/admin/product">
+        <el-menu-item :index="getMenuPath('/admin/product')">
           <el-icon><Goods /></el-icon>
           <span>产品管理</span>
         </el-menu-item>
-        <el-menu-item index="/admin/inquiry">
+        <el-menu-item :index="getMenuPath('/admin/inquiry')">
           <el-icon><Message /></el-icon>
           <span>询价管理</span>
         </el-menu-item>
-        <el-menu-item index="/admin/contact-message">
+        <el-menu-item :index="getMenuPath('/admin/contact-message')">
           <el-icon><ChatDotRound /></el-icon>
           <span>联系消息</span>
         </el-menu-item>
-        <el-menu-item index="/admin/user">
+        <el-menu-item :index="getMenuPath('/admin/user')">
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
@@ -61,16 +61,37 @@ import ContentContainer from '../components/ContentContainer.vue';
 
 const router = useRouter();
 const route = useRoute();
+
+// 检测当前环境
+const isTestEnvironment = () => {
+  return window.location.pathname.startsWith('/test')
+}
+
+// 根据环境获取菜单路径
+const getMenuPath = (path) => {
+  if (isTestEnvironment()) {
+    return path.replace('/admin/', '/test/admin/')
+  }
+  return path
+}
+
 const activeMenu = computed(() => {
   // 确保路径格式一致
   const path = route.path;
-  if (path === '/admin') return '/admin/company';
+  if (path === '/admin' || path === '/test/admin') {
+    return isTestEnvironment() ? '/test/admin/company' : '/admin/company';
+  }
   return path;
 });
 
 const logout = () => {
   localStorage.removeItem('token');
-  router.push('/admin/login');
+  // 根据当前环境跳转到对应的登录页面
+  if (isTestEnvironment()) {
+    router.push('/test/admin/login');
+  } else {
+    router.push('/admin/login');
+  }
 };
 </script>
 

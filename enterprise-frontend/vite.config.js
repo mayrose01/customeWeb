@@ -9,6 +9,11 @@ export default defineConfig(({ command, mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '')
   
+  // 根据环境确定端口和主机
+  const port = parseInt(env.VITE_APP_PORT) || 80
+  // 总是绑定到0.0.0.0以确保外部访问
+  const host = '0.0.0.0'
+  
   return {
     plugins: [
       vue(),
@@ -27,7 +32,10 @@ export default defineConfig(({ command, mode }) => {
     // 开发服务器配置
     server: {
       host: '0.0.0.0',
-      port: 3000,
+      port: port,
+      cors: true,
+      strictPort: false,
+      allowedHosts: 'all',
       proxy: {
         '/api': {
           target: env.VITE_API_BASE_URL || 'http://localhost:8000',
@@ -44,7 +52,7 @@ export default defineConfig(({ command, mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            vendor: ['vue', 'vue-router', 'pinia'],
+            vendor: ['vue', 'vue-router'],
             elementPlus: ['element-plus']
           }
         }

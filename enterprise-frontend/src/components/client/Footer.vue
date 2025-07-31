@@ -25,10 +25,10 @@
         <div class="footer-section">
           <h3>快速导航</h3>
           <ul class="nav-links">
-            <li><router-link to="/">首页</router-link></li>
-            <li><router-link to="/all-products">产品列表</router-link></li>
-            <li><router-link to="/about">关于我们</router-link></li>
-            <li><router-link to="/contact">联系我们</router-link></li>
+            <li><router-link :to="getClientPath('/')">首页</router-link></li>
+            <li><router-link :to="getClientPath('/all-products')">产品列表</router-link></li>
+            <li><router-link :to="getClientPath('/about')">关于我们</router-link></li>
+            <li><router-link :to="getClientPath('/contact')">联系我们</router-link></li>
           </ul>
         </div>
 
@@ -51,6 +51,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { getCompanyInfo } from '@/api/client'
+import { getClientPath } from '@/utils/pathUtils'
 
 export default {
   name: 'ClientFooter',
@@ -71,7 +72,8 @@ export default {
     })
 
     return {
-      companyInfo
+      companyInfo,
+      getClientPath
     }
   }
 }

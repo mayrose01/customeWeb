@@ -266,6 +266,8 @@ import { getCategoriesTree, getSubcategories, getCategories } from '../api/categ
 import '@wangeditor/editor/dist/css/style.css';
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue';
 import draggable from 'vuedraggable';
+import { API_BASE_URL, UPLOAD_PATH } from '../../env.config.js';
+import { getImageUrl as getImageUrlUtil } from '../utils/imageUtils';
 
 // 基础变量定义
 const products = ref([]);
@@ -285,7 +287,7 @@ const pagination = ref({
 });
 
 // 上传相关
-const uploadUrl = 'http://localhost:8000/api/upload/';
+const uploadUrl = `${API_BASE_URL}/upload/`;
 const uploadHeaders = ref({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 });
@@ -365,7 +367,7 @@ const getEditorConfig = () => {
         headers: uploadHeaders.value,
         // 处理后端返回的图片URL
         customInsert(res, insertFn) {
-          const fullUrl = getImageUrl(res.url);
+          const fullUrl = getImageUrlUtil(res.url);
           insertFn(fullUrl, '', '');
         },
         // 允许上传多张图片
@@ -856,7 +858,7 @@ const openAddDialog = () => {
 const getImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  return `http://localhost:8000${url}`;
+  return getImageUrlUtil(url);
 };
 
 // 格式化日期时间

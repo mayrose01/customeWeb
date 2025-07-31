@@ -118,6 +118,8 @@ import { getCompanyInfo } from '@/api/client'
 import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
 import { userStore } from '@/store/user'
+import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '../../../env.config.js'
 
 const companyInfo = ref({})
 const submitting = ref(false)
@@ -161,7 +163,7 @@ const submitInquiry = async () => {
     }
 
     // 使用支持用户关联的API
-    const response = await fetch('http://localhost:8000/api/contact-message/with-user', {
+    const response = await fetch(`${API_BASE_URL}/contact-message/with-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

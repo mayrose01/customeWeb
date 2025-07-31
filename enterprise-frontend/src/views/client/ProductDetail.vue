@@ -7,9 +7,9 @@
       <div class="container">
         <!-- 面包屑导航 -->
         <div class="breadcrumb">
-          <router-link to="/categories">分类</router-link>
+          <router-link :to="getClientPath('/categories')">分类</router-link>
           <span class="separator">/</span>
-          <router-link :to="`/categories/${product.category_id}`" v-if="categoryName">
+          <router-link :to="getClientPath(`/categories/${product.category_id}`)" v-if="categoryName">
             {{ categoryName }}
           </router-link>
           <span class="separator">/</span>
@@ -129,6 +129,7 @@ import InquiryModal from '@/components/client/InquiryModal.vue'
 import { getProduct } from '@/api/product'
 import { getCategories } from '@/api/category'
 import { getImageUrl } from '@/utils/imageUtils'
+import { getClientPath } from '@/utils/pathUtils'
 
 export default {
   name: 'ProductDetail',
@@ -208,7 +209,7 @@ export default {
     }
 
     const goToContact = () => {
-      router.push('/contact')
+      router.push(getClientPath('/contact'))
     }
 
     const goBack = () => {
@@ -299,7 +300,8 @@ export default {
       handleImageLoad,
       handleThumbnailError,
       getImageUrl,
-      applyDetailImageStyles
+      applyDetailImageStyles,
+      getClientPath
     }
   }
 }

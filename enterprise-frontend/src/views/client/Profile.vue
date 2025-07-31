@@ -31,7 +31,7 @@
                       :before-upload="beforeAvatarUpload"
                       :on-success="handleAvatarSuccess"
                       :on-error="handleAvatarError"
-                      action="http://localhost:8000/api/upload/"
+                      :action="`${API_BASE_URL}/upload/`"
                       accept="image/*"
                     >
                       <el-button type="primary" size="small">更换头像</el-button>
@@ -217,6 +217,8 @@ import { useRouter } from 'vue-router'
 import { userStore } from '@/store/user'
 import { getImageUrl } from '@/utils/imageUtils'
 import axios from '@/api/axios'
+import { getInquiries } from '@/api/inquiry'
+import { API_BASE_URL, UPLOAD_PATH } from '../../../env.config.js'
 
 const router = useRouter()
 const activeTab = ref('basic')
@@ -359,8 +361,18 @@ const beforeAvatarUpload = (file) => {
 
 const handleAvatarSuccess = (response) => {
   // 构建完整的头像URL
-  const fullAvatarUrl = `http://localhost:8000${response.url}`
+  const fullAvatarUrl = getImageUrl(response.url)
   userForm.avatar_url = fullAvatarUrl
+  
+  // 立即更新userStore中的用户信息
+  const updatedUserInfo = {
+    ...userInfo.value,
+    avatar_url: fullAvatarUrl
+  }
+  userStore.setUserInfo(updatedUserInfo)
+  
+  // 更新localStorage中的用户信息
+  localStorage.setItem('client_user', JSON.stringify(updatedUserInfo))
   
   ElMessage.success('头像上传成功')
 }
@@ -395,6 +407,13 @@ const updateUserInfo = async () => {
 
     const updatedUser = response.data
     userInfo.value = updatedUser
+    
+    // 更新userStore中的用户信息
+    userStore.setUserInfo(updatedUser)
+    
+    // 更新localStorage中的用户信息
+    localStorage.setItem('client_user', JSON.stringify(updatedUser))
+    
     ElMessage.success('信息更新成功')
   } catch (error) {
     ElMessage.error('更新失败')

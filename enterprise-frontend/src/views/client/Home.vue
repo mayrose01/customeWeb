@@ -31,8 +31,8 @@
               <h1 class="company-title">{{ companyInfo.name || '企业官网' }}</h1>
               <p class="company-description">{{ companyInfo.main_business || '专注于为客户提供优质的产品和服务' }}</p>
               <div class="company-actions">
-                <router-link to="/all-products" class="btn-primary">查看产品</router-link>
-                <router-link to="/contact" class="btn-secondary">联系我们</router-link>
+                <router-link :to="getClientPath('/all-products')" class="btn-primary">查看产品</router-link>
+                <router-link :to="getClientPath('/contact')" class="btn-secondary">联系我们</router-link>
               </div>
             </div>
             <div class="company-image" v-if="companyInfo.main_pic_url">
@@ -109,6 +109,7 @@ import { ref, onMounted } from 'vue'
 import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
 import { getCompanyInfo, getCarouselImages, getServices } from '@/api/client'
+import { getClientPath } from '@/utils/pathUtils'
 
 export default {
   name: 'ClientHome',
@@ -145,7 +146,8 @@ export default {
     return {
       companyInfo,
       carouselImages,
-      services
+      services,
+      getClientPath
     }
   }
 }

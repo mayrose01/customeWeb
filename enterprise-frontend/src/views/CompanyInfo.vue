@@ -186,13 +186,15 @@
   </template>
   
   <script setup>
-  import { ref, onMounted } from 'vue';
+  import { ref, reactive, onMounted } from 'vue';
   import { ElMessage } from 'element-plus';
-  import { getCompanyInfo, createCompanyInfo, updateCompanyInfo, deleteCompanyInfo } from '../api/company';
+  import { getCompanyInfo, updateCompanyInfo, createCompanyInfo, deleteCompanyInfo } from '../api/company';
+  import { API_BASE_URL, UPLOAD_PATH } from '../../env.config.js';
+  import { getImageUrl } from '../utils/imageUtils';
   
   const isEditing = ref(false);
   const saving = ref(false);
-  const uploadUrl = 'http://localhost:8000/api/upload/';
+  const uploadUrl = `${API_BASE_URL}/upload/`;
   
   const companyInfo = ref({});
   const form = ref({
@@ -284,8 +286,7 @@
   };
   
   const handleLogoSuccess = (response) => {
-    // 构建完整的图片URL
-    form.value.logo_url = `http://localhost:8000${response.url}`;
+    form.value.logo_url = getImageUrl(response.url);
     ElMessage.success('Logo上传成功');
   };
   
@@ -308,8 +309,7 @@
   };
 
   const handleCompanyImageSuccess = (response) => {
-    // 构建完整的图片URL
-    form.value.company_image = `http://localhost:8000${response.url}`;
+    form.value.company_image = getImageUrl(response.url);
     ElMessage.success('公司图片上传成功');
   };
 
@@ -332,9 +332,8 @@
   };
 
   const handleMainPicSuccess = (response) => {
-    // 构建完整的图片URL
-    form.value.main_pic_url = `http://localhost:8000${response.url}`;
-    ElMessage.success('配图上传成功');
+    form.value.main_pic_url = getImageUrl(response.url);
+    ElMessage.success('主图上传成功');
   };
 
   const handleMainPicError = () => {

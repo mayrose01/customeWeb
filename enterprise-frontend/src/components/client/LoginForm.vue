@@ -255,14 +255,30 @@ export default {
     
     const switchToRegister = () => {
       isLogin.value = false
-      // 更新路由到注册页面
-      router.push('/register')
+      // 根据当前环境更新路由到注册页面
+      const isTestEnvironment = () => {
+        return window.location.pathname.startsWith('/test')
+      }
+      
+      let registerPath = '/register'
+      if (isTestEnvironment()) {
+        registerPath = '/test/register'
+      }
+      router.push(registerPath)
     }
     
     const switchToLogin = () => {
       isLogin.value = true
-      // 更新路由到登录页面
-      router.push('/login')
+      // 根据当前环境更新路由到登录页面
+      const isTestEnvironment = () => {
+        return window.location.pathname.startsWith('/test')
+      }
+      
+      let loginPath = '/login'
+      if (isTestEnvironment()) {
+        loginPath = '/test/login'
+      }
+      router.push(loginPath)
     }
     
     // 密码显示切换方法
@@ -304,8 +320,19 @@ export default {
           alert('登录成功！')
         }
         
-        // 跳转到指定页面
-        router.push(props.redirectTo)
+        // 根据当前环境跳转到对应的页面
+        const isTestEnvironment = () => {
+          return window.location.pathname.startsWith('/test')
+        }
+        
+        let redirectPath = props.redirectTo
+        if (isTestEnvironment()) {
+          // 如果是测试环境，确保路径以 /test 开头
+          if (!redirectPath.startsWith('/test')) {
+            redirectPath = `/test${redirectPath}`
+          }
+        }
+        router.push(redirectPath)
       } catch (error) {
         console.error('登录失败:', error)
         const errorMessage = error.response?.data?.detail || '登录失败，请检查用户名和密码'
@@ -368,8 +395,16 @@ export default {
             alert('注册成功！已自动登录')
           }
           
-          // 跳转到个人中心页面
-          router.push('/profile')
+          // 根据当前环境跳转到个人中心页面
+          const isTestEnvironment = () => {
+            return window.location.pathname.startsWith('/test')
+          }
+          
+          let profilePath = '/profile'
+          if (isTestEnvironment()) {
+            profilePath = '/test/profile'
+          }
+          router.push(profilePath)
         } catch (loginError) {
           console.error('自动登录失败:', loginError)
           if (typeof window !== 'undefined' && window.ElMessage) {

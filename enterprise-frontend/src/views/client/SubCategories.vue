@@ -6,7 +6,7 @@
       <div class="container">
         <!-- 面包屑导航 -->
         <div class="breadcrumb">
-          <router-link to="/categories">分类</router-link>
+          <router-link :to="getClientPath('/categories')">分类</router-link>
           <span class="separator">/</span>
           <span>{{ categoryName }}</span>
         </div>
@@ -131,6 +131,7 @@ import InquiryModal from '@/components/client/InquiryModal.vue'
 import { getCategories } from '@/api/category'
 import { getProducts } from '@/api/product'
 import { getImageUrl, getProductImages } from '@/utils/imageUtils'
+import { getClientPath } from '@/utils/pathUtils'
 
 export default {
   name: 'ClientSubCategories',
@@ -293,7 +294,8 @@ export default {
       handleInquirySuccess,
 
       handleImageError,
-      getImageUrl
+      getImageUrl,
+      getClientPath
     }
   }
 }

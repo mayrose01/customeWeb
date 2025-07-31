@@ -6,8 +6,8 @@ from datetime import datetime
 
 router = APIRouter()
 
-# 确保上传目录存在
-UPLOAD_DIR = "uploads"
+# 从环境变量获取上传目录，默认为uploads
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 

@@ -93,15 +93,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getCarouselImages, createCarouselImage, updateCarouselImage, deleteCarouselImage } from '../api/carousel';
+import { getCarouselImages, createCarouselImage, updateCarouselImage, deleteCarouselImage as delCarouselImage } from '../api/carousel';
+import { API_BASE_URL, UPLOAD_PATH } from '../../env.config.js';
+import { getImageUrl } from '../utils/imageUtils';
 
 const carouselList = ref([]);
 const dialogVisible = ref(false);
 const dialogTitle = ref('');
 const saving = ref(false);
-const uploadUrl = 'http://localhost:8000/api/upload/';
+  const uploadUrl = `${API_BASE_URL}/upload/`;
 
 const form = ref({
   image_url: '',
@@ -193,7 +195,7 @@ const handleDelete = async (row) => {
       type: 'warning'
     });
     
-    await deleteCarouselImage(row.id);
+    await delCarouselImage(row.id);
     ElMessage.success('删除成功');
     await fetchData();
   } catch (e) {
@@ -218,7 +220,7 @@ const beforeImageUpload = (file) => {
 };
 
 const handleImageSuccess = (response) => {
-  form.value.image_url = `http://localhost:8000${response.url}`;
+  form.value.image_url = getImageUrl(response.url);
   ElMessage.success('图片上传成功');
 };
 

@@ -29,13 +29,24 @@ const router = useRouter();
 const form = ref({ username: '', password: '' });
 const loading = ref(false);
 
+// 检测当前环境
+const isTestEnvironment = () => {
+  return window.location.pathname.startsWith('/test')
+}
+
 const onLogin = async () => {
   loading.value = true;
   try {
     const res = await login(form.value.username, form.value.password);
     localStorage.setItem('token', res.data.access_token);
     ElMessage.success('登录成功')
-    router.push('/admin');
+    
+    // 根据当前环境跳转到对应的管理页面
+    if (isTestEnvironment()) {
+      router.push('/test/admin');
+    } else {
+      router.push('/admin');
+    }
   } catch (e) {
     // 显示后端返回的具体错误信息
     const errorMessage = e.response?.data?.detail || '登录失败，请稍后重试';

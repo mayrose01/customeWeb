@@ -95,15 +95,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getServices, createService, updateService, deleteService } from '../api/service';
+import { getServices, createService, updateService, deleteService as delService } from '../api/service';
+import { API_BASE_URL, UPLOAD_PATH } from '../../env.config.js';
+import { getImageUrl } from '../utils/imageUtils';
 
 const serviceList = ref([]);
 const dialogVisible = ref(false);
 const dialogTitle = ref('');
 const saving = ref(false);
-const uploadUrl = 'http://localhost:8000/api/upload/';
+  const uploadUrl = `${API_BASE_URL}/upload/`;
 
 const form = ref({
   name: '',
@@ -194,7 +196,7 @@ const handleDelete = async (row) => {
       type: 'warning'
     });
     
-    await deleteService(row.id);
+    await delService(row.id);
     ElMessage.success('删除成功');
     await fetchData();
   } catch (e) {
@@ -219,7 +221,7 @@ const beforeImageUpload = (file) => {
 };
 
 const handleImageSuccess = (response) => {
-  form.value.image_url = `http://localhost:8000${response.url}`;
+  form.value.image_url = getImageUrl(response.url);
   ElMessage.success('图片上传成功');
 };
 

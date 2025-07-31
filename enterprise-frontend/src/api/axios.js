@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import { API_BASE_URL } from '../../env.config.js';
+import { API_BASE_URL, APP_ENV } from '../../env.config.js';
+
+// 调试信息
+console.log('=== API配置信息 ===');
+console.log('当前API_BASE_URL:', API_BASE_URL);
+console.log('当前环境:', APP_ENV);
 
 const instance = axios.create({
   baseURL: API_BASE_URL,
@@ -25,8 +30,8 @@ instance.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
     
-    // 如果是401错误且没有重试过
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 如果是401错误且没有重试过，且不是刷新token的请求本身
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/refresh-token')) {
       originalRequest._retry = true;
       
       try {
@@ -51,11 +56,18 @@ instance.interceptors.response.use(
         // 刷新token失败，清除本地token并跳转到登录页
         localStorage.removeItem('client_token');
         localStorage.removeItem('token');
-        ElMessage.error('登录已过期，请重新登录');
         
-        // 如果是管理后台页面，跳转到登录页
-        if (window.location.pathname.includes('/admin') || window.location.pathname.includes('/dashboard')) {
-          window.location.href = '/login';
+        // 避免在登录页面显示错误消息
+        if (!window.location.pathname.includes('/login')) {
+          ElMessage.error('登录已过期，请重新登录');
+          
+          // 根据当前环境跳转到对应的登录页
+          const isTestEnvironment = window.location.pathname.startsWith('/test');
+          if (isTestEnvironment) {
+            window.location.href = '/test/login';
+          } else {
+            window.location.href = '/login';
+          }
         }
         
         return Promise.reject(error);

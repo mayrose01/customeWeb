@@ -17,13 +17,13 @@
               <i class="icon-phone"></i>
               <span>{{ companyInfo.phone }}</span>
             </div>
-            <router-link to="/contact" class="consult-btn">免费咨询</router-link>
+            <router-link :to="getClientPath('/contact')" class="consult-btn">免费咨询</router-link>
             
             <!-- 用户登录区域 -->
             <div class="user-section">
               <div v-if="!userStore.isLoggedIn" class="login-buttons">
-                <router-link to="/login" class="login-btn">登录</router-link>
-                <router-link to="/register" class="register-btn">注册</router-link>
+                <router-link :to="getClientPath('/login')" class="login-btn">登录</router-link>
+                <router-link :to="getClientPath('/register')" class="register-btn">注册</router-link>
               </div>
               <div v-else class="user-info">
                 <div class="user-dropdown" @click="toggleUserDropdown">
@@ -65,14 +65,14 @@
       <div class="container">
         <div class="nav-content">
           <div class="logo">
-            <router-link to="/">
+            <router-link :to="getClientPath('/')">
               <img v-if="companyInfo.logo_url" :src="companyInfo.logo_url" :alt="companyInfo.name" />
               <span v-else>{{ companyInfo.name || '企业官网' }}</span>
             </router-link>
           </div>
           
           <div class="nav-menu">
-            <router-link to="/" class="nav-item" active-class="active">首页</router-link>
+            <router-link :to="getClientPath('/')" class="nav-item" active-class="active">首页</router-link>
             <div class="nav-item dropdown" :class="{ active: isCategoriesDropdownVisible }">
               <span class="dropdown-trigger" @click="toggleCategoriesDropdown">分类</span>
               <div class="dropdown-menu" v-show="isCategoriesDropdownVisible">
@@ -103,8 +103,8 @@
                 </div>
               </div>
             </div>
-            <router-link to="/about" class="nav-item" active-class="active">关于</router-link>
-            <router-link to="/contact" class="nav-item" active-class="active">联系我们</router-link>
+            <router-link :to="getClientPath('/about')" class="nav-item" active-class="active">关于</router-link>
+            <router-link :to="getClientPath('/contact')" class="nav-item" active-class="active">联系我们</router-link>
           </div>
 
           <div class="search-box">
@@ -122,11 +122,12 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCompanyInfo } from '@/api/client'
 import { getCategories, getSubcategories } from '@/api/category'
 import { userStore } from '@/store/user'
+import { getClientPath } from '@/utils/pathUtils'
 
 export default {
   name: 'ClientHeader',
@@ -163,19 +164,19 @@ export default {
 
     // 跳转到个人中心
     const goToProfile = () => {
-      router.push('/profile')
+      router.push(getClientPath('/profile'))
       isUserDropdownVisible.value = false
     }
 
     // 跳转到询价列表
     const goToInquiries = () => {
-      router.push('/inquiries')
+      router.push(getClientPath('/inquiries'))
       isUserDropdownVisible.value = false
     }
 
     // 跳转到咨询列表
     const goToConsultations = () => {
-      router.push('/consultations')
+      router.push(getClientPath('/consultations'))
       isUserDropdownVisible.value = false
     }
 
@@ -183,7 +184,7 @@ export default {
     const handleLogout = () => {
       userStore.logout()
       isUserDropdownVisible.value = false
-      router.push('/')
+      router.push(getClientPath('/'))
     }
 
     const loadTopCategories = async () => {
@@ -220,20 +221,20 @@ export default {
     }
 
     const goToSubCategories = (categoryId) => {
-      router.push(`/categories/${categoryId}`)
+      router.push(getClientPath(`/categories/${categoryId}`))
       isCategoriesDropdownVisible.value = false
       activeCategoryId.value = null
     }
 
     const goToAllProducts = () => {
-      router.push('/all-products')
+      router.push(getClientPath('/all-products'))
       isCategoriesDropdownVisible.value = false
     }
 
     const handleSearch = () => {
       if (searchKeyword.value.trim()) {
         router.push({
-          path: '/all-products',
+          path: getClientPath('/all-products'),
           query: { search: searchKeyword.value }
         })
       }
@@ -254,7 +255,18 @@ export default {
       }
     }
 
+    // 检查登录状态
+    const checkLoginStatus = () => {
+      userStore.checkLoginStatus()
+    }
+
+    // 监听userStore的变化
+    watch(() => userStore.userInfo, (newUserInfo) => {
+      console.log('用户信息已更新:', newUserInfo)
+    }, { deep: true })
+
     onMounted(() => {
+      checkLoginStatus()
       loadCompanyInfo()
       loadTopCategories()
       document.addEventListener('click', handleClickOutside)
@@ -282,7 +294,8 @@ export default {
         toggleSubcategories,
         goToSubCategories,
         goToAllProducts,
-        handleSearch
+        handleSearch,
+        getClientPath
       }
   }
 }
