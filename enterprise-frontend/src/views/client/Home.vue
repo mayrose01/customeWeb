@@ -64,8 +64,8 @@
         </div>
       </section>
 
-      <!-- 特色功能区域 -->
-      <section class="features-section">
+      <!-- 特色功能区域 - 已隐藏 -->
+      <!-- <section class="features-section">
         <div class="container">
           <div class="section-header">
             <h2>我们的主要特色</h2>
@@ -95,7 +95,7 @@
             </div>
           </div>
         </div>
-      </section>
+      </section> -->
 
 
     </main>
