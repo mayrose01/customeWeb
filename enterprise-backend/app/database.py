@@ -18,7 +18,7 @@ else:
 if env == "production":
     SQLALCHEMY_DATABASE_URL = os.getenv(
         "DATABASE_URL", 
-        "mysql://enterprise_user:enterprise_password_2024@localhost:3306/enterprise_prod"
+        "mysql+pymysql://enterprise_user:enterprise_password_2024@localhost:3306/enterprise_db"
     )
 elif env == "test":
     # 测试环境数据库配置

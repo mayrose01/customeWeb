@@ -33,7 +33,14 @@ const getCurrentEnv = () => {
     return import.meta.env.VITE_APP_ENV;
   }
   
-  // 2. 基于域名和端口判断环境
+  // 2. 检查是否在构建环境中（SSR或构建时）
+  if (typeof window === 'undefined') {
+    // 构建时环境，使用默认环境变量
+    console.log('构建时环境，使用默认配置');
+    return 'production'; // 构建时默认为生产环境
+  }
+  
+  // 3. 基于域名和端口判断环境（仅在浏览器中）
   const hostname = window.location.hostname;
   const port = window.location.port;
   console.log('环境判断 - hostname:', hostname, 'port:', port);
@@ -62,7 +69,7 @@ const getCurrentEnv = () => {
   }
 };
 
-// 获取当前环境的配置
+// 获取当前环境的配置 - 动态获取，每次调用都重新检测
 const getConfig = () => {
   const currentEnv = getCurrentEnv();
   console.log('当前环境:', currentEnv);
@@ -79,7 +86,10 @@ const getConfig = () => {
   return config;
 };
 
-// 导出配置
+// 导出动态配置函数
+export const getCurrentConfig = getConfig;
+
+// 导出当前配置（兼容性）
 export const config = getConfig();
 export const API_BASE_URL = config.API_BASE_URL;
 export const APP_ENV = config.APP_ENV;

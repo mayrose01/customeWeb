@@ -14,6 +14,17 @@ export default defineConfig(({ command, mode }) => {
   // 总是绑定到0.0.0.0以确保外部访问
   const host = '0.0.0.0'
   
+  // 根据环境确定默认API地址
+  const getDefaultApiUrl = () => {
+    if (mode === 'production') {
+      return 'https://catusfoto.top/api'
+    } else if (mode === 'test') {
+      return 'http://test.catusfoto.top:8000/api'
+    } else {
+      return 'http://localhost:8000/api'
+    }
+  }
+  
   return {
     plugins: [
       vue(),
@@ -27,7 +38,7 @@ export default defineConfig(({ command, mode }) => {
     // 定义环境变量
     define: {
       __APP_ENV__: JSON.stringify(env.VITE_APP_ENV || 'development'),
-      __API_BASE_URL__: JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:8000/api'),
+      __API_BASE_URL__: JSON.stringify(env.VITE_API_BASE_URL || getDefaultApiUrl()),
     },
     // 开发服务器配置
     server: {
@@ -38,7 +49,7 @@ export default defineConfig(({ command, mode }) => {
       allowedHosts: 'all',
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8000',
+          target: env.VITE_API_BASE_URL || getDefaultApiUrl(),
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '/api')
         }

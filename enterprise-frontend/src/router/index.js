@@ -9,7 +9,6 @@ import CarouselManage from '../views/CarouselManage.vue'
 import ContactMessageManage from '../views/ContactMessageManage.vue'
 import ServiceManage from '../views/ServiceManage.vue'
 import UserManage from '../views/UserManage.vue'
-import EnvironmentTest from '../views/EnvironmentTest.vue'
 
 // 前端客户展示网站页面
 import ClientHome from '../views/client/Home.vue'
@@ -33,13 +32,6 @@ const isTestEnvironment = () => {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // 环境测试页面
-    {
-      path: '/env-test',
-      name: 'environment-test',
-      component: EnvironmentTest
-    },
-    
     // 测试环境路由（带/test前缀）
     {
       path: '/test',
