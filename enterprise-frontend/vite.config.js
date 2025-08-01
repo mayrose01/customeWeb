@@ -19,7 +19,7 @@ export default defineConfig(({ command, mode }) => {
     if (mode === 'production') {
       return 'https://catusfoto.top/api'
     } else if (mode === 'test') {
-      return 'http://test.catusfoto.top:8000/api'
+      return 'http://localhost:8001/api'
     } else {
       return 'http://localhost:8000/api'
     }

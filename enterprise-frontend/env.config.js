@@ -49,8 +49,8 @@ const getCurrentEnv = () => {
     if (port === '3000') {
       console.log('检测到开发环境 (localhost:3000)');
       return 'development';
-    } else if (port === '3001') {
-      console.log('检测到测试环境 (localhost:3001)');
+    } else if (port === '3001' || port === '3002' || port === '3003' || port === '3004' || port === '3005') {
+      console.log('检测到测试环境 (localhost:' + port + ')');
       return 'test';
     } else {
       console.log('检测到开发环境 (localhost)');
