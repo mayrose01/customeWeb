@@ -4,16 +4,22 @@ FROM node:18-alpine as build-stage
 # 设置工作目录
 WORKDIR /app
 
+# 设置环境变量
+ENV NODE_ENV=production
+ENV ROLLUP_SKIP_NATIVE=true
+ENV VITE_SKIP_NATIVE=true
+
 # 复制package文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 清理并重新安装依赖
+RUN rm -rf node_modules package-lock.json
+RUN npm install --legacy-peer-deps --platform=linux --arch=x64
 
 # 复制源代码
 COPY . .
 
-# 构建应用
+# 构建应用（使用简单构建）
 RUN npm run build
 
 # 生产阶段
