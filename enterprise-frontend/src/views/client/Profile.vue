@@ -21,7 +21,7 @@
                 <div class="avatar-upload">
                   <el-avatar 
                     :size="80" 
-                    :src="userForm.avatar_url || userInfo.avatar_url" 
+                    :src="getAvatarUrl()" 
                     class="avatar-preview"
                   />
                   <div class="avatar-actions">
@@ -37,7 +37,7 @@
                       <el-button type="primary" size="small">更换头像</el-button>
                     </el-upload>
                     <el-button 
-                      v-if="userForm.avatar_url || userInfo.avatar_url" 
+                      v-if="getAvatarUrl()" 
                       type="danger" 
                       size="small" 
                       @click="removeAvatar"
@@ -280,6 +280,22 @@ const passwordRules = {
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' }
   ]
+}
+
+const getAvatarUrl = () => {
+  // 优先使用userForm中的头像URL（最新上传的）
+  if (userForm.avatar_url) {
+    return userForm.avatar_url
+  }
+  // 其次使用userInfo中的头像URL
+  if (userInfo.value.avatar_url) {
+    return userInfo.value.avatar_url
+  }
+  // 最后尝试从userStore获取
+  if (userStore.userInfo && userStore.userInfo.avatar_url) {
+    return userStore.userInfo.avatar_url
+  }
+  return ''
 }
 
 const loadUserInfo = async () => {

@@ -126,7 +126,7 @@ upload_new_version() {
     rsync -avz --delete dist/ root@$SERVER_IP:/var/www/enterprise-frontend/
     
     # 设置正确的权限
-    ssh root@$SERVER_IP "chown -R www-data:www-data /var/www/enterprise-frontend"
+    ssh root@$SERVER_IP "chown -R nginx:nginx /var/www/enterprise-frontend"
     
     log_info "前端文件上传完成"
 }

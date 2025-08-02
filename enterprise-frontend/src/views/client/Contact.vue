@@ -121,6 +121,7 @@ import { userStore } from '@/store/user'
 import { useRouter } from 'vue-router'
 import { API_BASE_URL } from '../../../env.config.js'
 
+const router = useRouter()
 const companyInfo = ref({})
 const submitting = ref(false)
 
