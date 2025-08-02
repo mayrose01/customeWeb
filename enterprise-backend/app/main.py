@@ -1,98 +1,118 @@
 import logging
 import os
 from datetime import datetime
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import Base
-from app.database import engine
-from app.api import router as api_router
-import time
+
+# 导入配置
+from app.config import settings
+
+# 导入路由
+from app.api.endpoints import (
+    company, category, product, inquiry, 
+    user, upload, contact_field, contact_message,
+    carousel, service, client_product, client_user
+)
+
+# 导入数据库
+from app.database import engine, Base
 
 # 创建logs目录
 os.makedirs("logs", exist_ok=True)
 
+# 创建数据库表
+Base.metadata.create_all(bind=engine)
+
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f'logs/app_{datetime.now().strftime("%Y%m%d")}.log', encoding='utf-8'),
+        logging.FileHandler(settings.LOG_FILE),
         logging.StreamHandler()
     ]
 )
 
 logger = logging.getLogger(__name__)
 
-# 从环境变量获取上传目录，默认为uploads
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="企业网站API")
-
-# 数据库操作监控中间件
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    
-    # 记录请求开始
-    logger.info(f"API请求开始: {request.method} {request.url.path} - 客户端: {request.client.host if request.client else 'unknown'}")
-    
-    # 处理请求
-    response = await call_next(request)
-    
-    # 计算处理时间
-    process_time = time.time() - start_time
-    
-    # 记录请求完成
-    logger.info(f"API请求完成: {request.method} {request.url.path} - 状态码: {response.status_code} - 处理时间: {process_time:.3f}秒")
-    
-    return response
-
-# 添加 CORS 中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost", 
-        "http://localhost:5173", 
-        "http://localhost:5174", 
-        "http://localhost:3000", 
-        "http://localhost:3001",  # 测试环境前端
-        "http://localhost:3002",  # 前端服务端口
-        "http://127.0.0.1",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3001",  # 测试环境前端
-        "http://127.0.0.1:3002",  # 前端服务端口
-        "http://test.catusfoto.top",  # 测试环境域名
-        "https://catusfoto.top",  # 生产环境
-        "https://www.catusfoto.top"  # 生产环境www
-    ],  # 允许的前端地址
-    allow_credentials=True,
-    allow_methods=["*"],  # 允许所有 HTTP 方法
-    allow_headers=["*"],  # 允许所有请求头
+# 创建FastAPI应用
+app = FastAPI(
+    title="Enterprise Website API",
+    description="企业官网后端API",
+    version="1.0.0",
+    debug=settings.DEBUG
 )
 
-# 开发环境API路由
-app.include_router(api_router, prefix="/api")
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 测试环境API路由 - 使用测试数据库
-try:
-    from app.test_api import router as test_api_router
-    app.include_router(test_api_router, prefix="/test/api")
-except ImportError:
-    # 测试API模块不存在时跳过
-    pass
+# 挂载静态文件
+if os.path.exists(settings.UPLOAD_DIR):
+    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
-# 挂载静态文件目录 - 使用环境变量
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# 健康检查接口
+@app.get("/api/health")
+async def health_check():
+    """健康检查接口"""
+    return {
+        "status": "healthy",
+        "environment": settings.ENVIRONMENT,
+        "timestamp": datetime.now().isoformat(),
+        "database_url": settings.DATABASE_URL.split("@")[0] + "@***" if "@" in settings.DATABASE_URL else "***"
+    }
 
-# 启动日志
-logger.info("企业网站API服务启动")
-logger.info(f"当前时间: {datetime.now()}")
-logger.info(f"当前环境数据库连接: {engine.url}")
-logger.info(f"上传目录: {UPLOAD_DIR}")
-logger.info("日志系统已启用，所有数据库操作将被记录") 
+# 环境信息接口
+@app.get("/api/environment")
+async def get_environment_info():
+    """获取环境信息"""
+    return {
+        "environment": settings.ENVIRONMENT,
+        "debug": settings.DEBUG,
+        "cors_origins": settings.CORS_ORIGINS,
+        "log_level": settings.LOG_LEVEL
+    }
+
+# 包含路由
+app.include_router(company.router, prefix="/api/company", tags=["company"])
+app.include_router(category.router, prefix="/api/category", tags=["category"])
+app.include_router(product.router, prefix="/api/product", tags=["product"])
+app.include_router(inquiry.router, prefix="/api/inquiry", tags=["inquiry"])
+app.include_router(user.router, prefix="/api/user", tags=["user"])
+app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
+app.include_router(contact_field.router, prefix="/api/contact-field", tags=["contact_field"])
+app.include_router(contact_message.router, prefix="/api/contact-message", tags=["contact_message"])
+app.include_router(carousel.router, prefix="/api/carousel", tags=["carousel"])
+app.include_router(service.router, prefix="/api/service", tags=["service"])
+app.include_router(client_product.router, prefix="/api/client-product", tags=["client-product"])
+app.include_router(client_user.router, prefix="/api/client-user", tags=["client-user"])
+
+# 启动事件
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时的初始化"""
+    logger.info(f"Starting application in {settings.ENVIRONMENT} environment")
+    logger.info(f"Database URL: {settings.DATABASE_URL.split('@')[0]}@***")
+    logger.info(f"CORS Origins: {settings.CORS_ORIGINS}")
+
+# 关闭事件
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时的清理"""
+    logger.info("Shutting down application")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.DEBUG,
+        log_level=settings.LOG_LEVEL.lower()
+    ) 

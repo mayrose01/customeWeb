@@ -1,0 +1,288 @@
+# GitLab CI/CD 配置文件
+# 企业官网项目持续集成/持续部署
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  # 全局变量
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  
+  # 项目路径
+  BACKEND_PATH: "enterprise-backend"
+  FRONTEND_PATH: "enterprise-frontend"
+  
+  # 数据库配置
+  MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+  MYSQL_DATABASE: $MYSQL_DATABASE
+  MYSQL_USER: $MYSQL_USER
+  MYSQL_PASSWORD: $MYSQL_PASSWORD
+
+# 缓存配置
+cache:
+  paths:
+    - $FRONTEND_PATH/node_modules/
+    - $BACKEND_PATH/venv/
+
+# 测试阶段
+test:backend:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - mysql:8.0
+  variables:
+    MYSQL_ROOT_PASSWORD: "test_password"
+    MYSQL_DATABASE: "enterprise_test"
+    MYSQL_USER: "test_user"
+    MYSQL_PASSWORD: "test_password"
+    DATABASE_URL: "mysql://test_user:test_password@mysql:3306/enterprise_test"
+  before_script:
+    - cd $BACKEND_PATH
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - python -c "import mysql.connector; mysql.connector.connect(host='mysql', user='test_user', password='test_password', database='enterprise_test')"
+  script:
+    - source venv/bin/activate
+    - python -m pytest tests/ -v
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: $BACKEND_PATH/coverage.xml
+    expire_in: 1 week
+  only:
+    - merge_requests
+    - main
+    - develop
+
+test:frontend:
+  stage: test
+  image: node:18-alpine
+  before_script:
+    - cd $FRONTEND_PATH
+    - npm ci
+  script:
+    - npm run lint
+    - npm run test:unit
+  artifacts:
+    reports:
+      junit: $FRONTEND_PATH/test-results.xml
+    expire_in: 1 week
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# 构建阶段
+build:backend:
+  stage: build
+  image: python:3.11-slim
+  before_script:
+    - cd $BACKEND_PATH
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  script:
+    - source venv/bin/activate
+    - python -m py_compile app/main.py
+    - echo "Backend build completed"
+  artifacts:
+    paths:
+      - $BACKEND_PATH/venv/
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+
+build:frontend:dev:
+  stage: build
+  image: node:18-alpine
+  before_script:
+    - cd $FRONTEND_PATH
+    - npm ci
+  script:
+    - npm run build -- --mode development
+  artifacts:
+    paths:
+      - $FRONTEND_PATH/dist/
+    expire_in: 1 hour
+  only:
+    - develop
+
+build:frontend:prod:
+  stage: build
+  image: node:18-alpine
+  before_script:
+    - cd $FRONTEND_PATH
+    - npm ci
+  script:
+    - npm run build -- --mode production
+  artifacts:
+    paths:
+      - $FRONTEND_PATH/dist/
+    expire_in: 1 hour
+  only:
+    - main
+
+# 部署阶段 - 开发环境
+deploy:dev:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # 部署后端
+    - ssh $DEV_SSH_USER@$DEV_SSH_HOST "cd $DEV_BACKEND_PATH && git pull origin develop"
+    - ssh $DEV_SSH_USER@$DEV_SSH_HOST "cd $DEV_BACKEND_PATH && source venv/bin/activate && pip install -r requirements.txt"
+    - ssh $DEV_SSH_USER@$DEV_SSH_HOST "sudo systemctl restart enterprise-backend-dev"
+    
+    # 部署前端
+    - rsync -avz --delete $FRONTEND_PATH/dist/ $DEV_SSH_USER@$DEV_SSH_HOST:$DEV_FRONTEND_PATH/
+    
+    # 重启Nginx
+    - ssh $DEV_SSH_USER@$DEV_SSH_HOST "sudo systemctl reload nginx"
+  environment:
+    name: development
+    url: https://dev.yourdomain.com
+  only:
+    - develop
+
+# 部署阶段 - 测试环境
+deploy:test:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # 部署后端
+    - ssh $TEST_SSH_USER@$TEST_SSH_HOST "cd $TEST_BACKEND_PATH && git pull origin develop"
+    - ssh $TEST_SSH_USER@$TEST_SSH_HOST "cd $TEST_BACKEND_PATH && source venv/bin/activate && pip install -r requirements.txt"
+    - ssh $TEST_SSH_USER@$TEST_SSH_HOST "sudo systemctl restart enterprise-backend-test"
+    
+    # 部署前端
+    - rsync -avz --delete $FRONTEND_PATH/dist/ $TEST_SSH_USER@$TEST_SSH_HOST:$TEST_FRONTEND_PATH/
+    
+    # 重启Nginx
+    - ssh $TEST_SSH_USER@$TEST_SSH_HOST "sudo systemctl reload nginx"
+  environment:
+    name: testing
+    url: https://test.yourdomain.com
+  only:
+    - develop
+
+# 部署阶段 - 生产环境
+deploy:prod:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # 备份数据库
+    - ssh $PROD_SSH_USER@$PROD_SSH_HOST "mysqldump -u $PROD_MYSQL_USER -p$PROD_MYSQL_PASSWORD $PROD_MYSQL_DATABASE > backup_$(date +%Y%m%d_%H%M%S).sql"
+    
+    # 部署后端
+    - ssh $PROD_SSH_USER@$PROD_SSH_HOST "cd $PROD_BACKEND_PATH && git pull origin main"
+    - ssh $PROD_SSH_USER@$PROD_SSH_HOST "cd $PROD_BACKEND_PATH && source venv/bin/activate && pip install -r requirements.txt"
+    - ssh $PROD_SSH_USER@$PROD_SSH_HOST "sudo systemctl restart enterprise-backend"
+    
+    # 部署前端
+    - rsync -avz --delete $FRONTEND_PATH/dist/ $PROD_SSH_USER@$PROD_SSH_HOST:$PROD_FRONTEND_PATH/
+    
+    # 重启Nginx
+    - ssh $PROD_SSH_USER@$PROD_SSH_HOST "sudo systemctl reload nginx"
+    
+    # 健康检查
+    - sleep 10
+    - curl -f https://yourdomain.com/api/health || exit 1
+  environment:
+    name: production
+    url: https://yourdomain.com
+  only:
+    - main
+  when: manual
+
+# 数据库迁移
+migrate:prod:
+  stage: deploy
+  image: python:3.11-slim
+  before_script:
+    - cd $BACKEND_PATH
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  script:
+    - source venv/bin/activate
+    - python -c "
+      import os
+      import mysql.connector
+      from app.database import engine
+      from app.models import Base
+      
+      # 连接生产数据库
+      conn = mysql.connector.connect(
+          host=os.environ['PROD_DB_HOST'],
+          user=os.environ['PROD_MYSQL_USER'],
+          password=os.environ['PROD_MYSQL_PASSWORD'],
+          database=os.environ['PROD_MYSQL_DATABASE']
+      )
+      
+      # 执行数据库迁移
+      Base.metadata.create_all(bind=engine)
+      print('Database migration completed')
+      "
+  environment:
+    name: production
+  only:
+    - main
+  when: manual
+
+# 安全扫描
+security:scan:
+  stage: test
+  image: owasp/zap2docker-stable
+  script:
+    - zap-baseline.py -t https://yourdomain.com -J zap-report.json
+  artifacts:
+    reports:
+      zap: zap-report.json
+    expire_in: 1 week
+  only:
+    - main
+  when: manual
+
+# 性能测试
+performance:test:
+  stage: test
+  image: grafana/k6:latest
+  script:
+    - k6 run --out json=performance-report.json performance-tests/load-test.js
+  artifacts:
+    reports:
+      performance: performance-report.json
+    expire_in: 1 week
+  only:
+    - main
+  when: manual 

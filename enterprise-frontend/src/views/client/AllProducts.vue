@@ -370,8 +370,9 @@ export default {
 .product-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.3s;
+  background-color: #f8f9fa;
 }
 
 .product-card:hover .product-image img {

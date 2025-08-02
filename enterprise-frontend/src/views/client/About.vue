@@ -486,18 +486,20 @@ export default {
   width: 100%;
   max-width: 400px;
   height: 250px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #f8f9fa;
 }
 
 .company-intro-img {
   width: 100%;
   max-width: 400px;
   height: 250px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #f8f9fa;
 }
 
 .loading-section {

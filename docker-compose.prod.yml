@@ -1,0 +1,106 @@
+services:
+  # 生产环境MySQL数据库
+  mysql_prod:
+    image: mysql:8.0
+    container_name: enterprise_mysql_prod
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: enterprise_pro
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3309:3306"  # 使用不同端口避免冲突
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backups:/backups
+    networks:
+      - enterprise_prod_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # 生产环境后端API服务
+  backend_prod:
+    build:
+      context: ./enterprise-backend
+      dockerfile: Dockerfile
+    container_name: enterprise_backend_prod
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql_prod:3306/enterprise_pro
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - CORS_ORIGINS=["https://yourdomain.com", "https://www.yourdomain.com"]
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - UPLOAD_DIR=uploads_prod
+      - MAX_FILE_SIZE=2097152
+      - LOG_LEVEL=INFO
+      - LOG_FILE=logs/app_prod.log
+    ports:
+      - "8000:8000"  # 生产环境端口
+    volumes:
+      - ./enterprise-backend/uploads_prod:/app/uploads
+      - ./enterprise-backend/logs:/app/logs
+    depends_on:
+      - mysql_prod
+    networks:
+      - enterprise_prod_network
+
+  # 生产环境前端服务
+  frontend_prod:
+    build:
+      context: ./enterprise-frontend
+      dockerfile: Dockerfile
+    container_name: enterprise_frontend_prod
+    restart: unless-stopped
+    environment:
+      - VITE_API_BASE_URL=https://yourdomain.com/api
+    ports:
+      - "3000:80"  # 生产环境端口
+    depends_on:
+      - backend_prod
+    networks:
+      - enterprise_prod_network
+
+  # 生产环境Nginx反向代理
+  nginx_prod:
+    image: nginx:alpine
+    container_name: enterprise_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - frontend_prod
+      - backend_prod
+    networks:
+      - enterprise_prod_network
+
+  # 生产环境Redis缓存（可选）
+  redis_prod:
+    image: redis:7-alpine
+    container_name: enterprise_redis_prod
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - enterprise_prod_network
+    command: redis-server --appendonly yes
+
+volumes:
+  mysql_prod_data:
+  redis_prod_data:
+
+networks:
+  enterprise_prod_network:
+    driver: bridge 
