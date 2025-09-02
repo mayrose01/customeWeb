@@ -27,9 +27,11 @@ class CompanyInfoOut(CompanyInfoBase):
 
 class CategoryBase(BaseModel):
     name: str
+    description: Optional[str] = None
     parent_id: Optional[int] = None
-    image: Optional[str] = None
     sort_order: Optional[int] = 0
+    is_active: Optional[int] = 1
+    image: Optional[str] = None
 
 class CategoryCreate(CategoryBase):
     pass
@@ -37,9 +39,11 @@ class CategoryCreate(CategoryBase):
 class CategoryOut(BaseModel):
     id: int
     name: str
+    description: Optional[str]
     parent_id: Optional[int]
-    image: Optional[str]
     sort_order: Optional[int]
+    is_active: Optional[int]
+    image: Optional[str]
     class Config:
         from_attributes = True
 

@@ -28,6 +28,7 @@ class Category(Base):
     is_active = Column(Integer, default=1)  # 是否启用
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))
+    image = Column(String(255), nullable=True)  # 分类图片
     children = relationship("Category", backref='parent', remote_side=[id])
 
 class Product(Base):
