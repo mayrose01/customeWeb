@@ -131,4 +131,14 @@ backups/
 
 # Build outputs
 dist/
-build/ 
+build/
+
+# Server configuration files (containing sensitive information)
+server_config.env
+*.env.local
+*.env.production
+
+# SSH private keys
+*.pem
+*.key
+enterprise_prod.pem 

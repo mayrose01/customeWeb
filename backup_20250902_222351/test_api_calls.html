@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API调用测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 API调用测试页面</h1>
+    
+    <div class="test-section info">
+        <h3>📋 测试说明</h3>
+        <p>此页面用于测试前端是否正确调用生产环境API。</p>
+        <p><strong>期望结果：</strong>API请求应该指向 <code>http://localhost:8002/api</code></p>
+        <p><strong>如果看到 localhost:8000，说明还有问题</strong></p>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 环境配置</h3>
+        <button onclick="checkEnvironment()">检查环境配置</button>
+        <div id="env-info"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📡 API测试</h3>
+        <button onclick="testCompanyAPI()">测试公司信息API</button>
+        <button onclick="testCategoryAPI()">测试分类API</button>
+        <button onclick="testProductAPI()">测试产品API</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🌐 网络请求监控</h3>
+        <p>请打开浏览器开发者工具 (F12)，切换到 Network 标签，然后点击上面的测试按钮。</p>
+        <p>观察网络请求的URL，确认是否指向正确的API地址。</p>
+    </div>
+
+    <script>
+        // 检查环境配置
+        function checkEnvironment() {
+            const envInfo = document.getElementById('env-info');
+            
+            // 尝试获取环境变量
+            const env = {
+                'VITE_API_BASE_URL': import.meta.env?.VITE_API_BASE_URL || '未设置',
+                'VITE_APP_ENV': import.meta.env?.VITE_APP_ENV || '未设置',
+                '当前页面URL': window.location.href,
+                '当前域名': window.location.hostname,
+                '当前端口': window.location.port
+            };
+            
+            let html = '<h4>环境变量信息：</h4><pre>';
+            for (const [key, value] of Object.entries(env)) {
+                html += `${key}: ${value}\n`;
+            }
+            html += '</pre>';
+            
+            envInfo.innerHTML = html;
+        }
+
+        // 测试公司信息API
+        async function testCompanyAPI() {
+            const results = document.getElementById('api-results');
+            results.innerHTML = '<h4>测试公司信息API...</h4>';
+            
+            try {
+                const response = await fetch('http://localhost:8002/api/company/');
+                const data = await response.json();
+                
+                results.innerHTML += `
+                    <div class="success">
+                        <h4>✅ 公司信息API测试成功</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="error">
+                        <h4>❌ 公司信息API测试失败</h4>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // 测试分类API
+        async function testCategoryAPI() {
+            const results = document.getElementById('api-results');
+            results.innerHTML = '<h4>测试分类API...</h4>';
+            
+            try {
+                const response = await fetch('http://localhost:8002/api/category/');
+                const data = await response.json();
+                
+                results.innerHTML += `
+                    <div class="success">
+                        <h4>✅ 分类API测试成功</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="error">
+                        <h4>❌ 分类API测试失败</h4>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // 测试产品API
+        async function testProductAPI() {
+            const results = document.getElementById('api-results');
+            results.innerHTML = '<h4>测试产品API...</h4>';
+            
+            try {
+                const response = await fetch('http://localhost:8002/api/product/');
+                const data = await response.json();
+                
+                results.innerHTML += `
+                    <div class="success">
+                        <h4>✅ 产品API测试成功</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="error">
+                        <h4>❌ 产品API测试失败</h4>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载时自动检查环境
+        window.onload = function() {
+            checkEnvironment();
+        };
+    </script>
+</body>
+</html> 
