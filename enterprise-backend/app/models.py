@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, JSON, Float, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, JSON, Float, Boolean, DECIMAL, Enum
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime, timezone, timedelta
 
@@ -19,42 +19,46 @@ class CompanyInfo(Base):
     about_text = Column(Text)  # 公司介绍（About页面）
 
 class Category(Base):
-    __tablename__ = "category"
+    __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    parent_id = Column(Integer, ForeignKey('category.id'), nullable=True)
-    image = Column(String(255), nullable=True)  # 分类图片
+    description = Column(Text, nullable=True)  # 分类描述
+    parent_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     sort_order = Column(Integer, default=0)  # 排序字段
+    is_active = Column(Integer, default=1)  # 是否启用
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))
     children = relationship("Category", backref='parent', remote_side=[id])
 
 class Product(Base):
-    __tablename__ = "product"
+    __tablename__ = "products"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(255), nullable=False)
-    model = Column(String(100))
-    short_desc = Column(Text)  # 富文本简要介绍
-    detail = Column(Text)  # 富文本详情介绍
-    images = Column(JSON)  # 存储多张图片URL的JSON数组，最多5张
-    category_id = Column(Integer, ForeignKey('category.id'))
+    name = Column(String(255), nullable=False)  # 产品名称
+    description = Column(Text, nullable=True)  # 产品描述
+    price = Column(DECIMAL(10,2), nullable=True)  # 产品价格
+    image_url = Column(String(255), nullable=True)  # 产品图片
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    sort_order = Column(Integer, default=0)  # 排序字段
+    is_active = Column(Integer, default=1)  # 是否启用
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))  # 创建时间（北京时间）
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))  # 修改时间（北京时间）
     category = relationship("Category")
 
 class Inquiry(Base):
-    __tablename__ = "inquiry"
+    __tablename__ = "inquiries"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # 用户ID（可选，关联用户表）
-    product_id = Column(Integer, ForeignKey('product.id'), nullable=True)
-    product_title = Column(String(255), nullable=True)  # 产品标题
-    product_model = Column(String(100), nullable=True)  # 产品型号
-    product_image = Column(String(255), nullable=True)  # 产品图片
-    customer_name = Column(String(100), nullable=False)  # 询价人姓名
-    customer_email = Column(String(100), nullable=False)  # 询价人邮箱
-    customer_phone = Column(String(50), nullable=True)  # 询价人电话
-    inquiry_subject = Column(String(255), nullable=True)  # 询价主题
-    inquiry_content = Column(Text, nullable=False)  # 询价内容
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)  # 产品ID
+    service_id = Column(Integer, ForeignKey('services.id'), nullable=True)  # 服务ID
+    name = Column(String(100), nullable=False)  # 询价人姓名
+    email = Column(String(255), nullable=False)  # 询价人邮箱
+    phone = Column(String(50), nullable=True)  # 询价人电话
+    message = Column(Text, nullable=True)  # 询价内容
+    status = Column(Enum('new', 'processing', 'completed', 'cancelled'), default='new')  # 询价状态
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))
     product = relationship("Product")
+    service = relationship("Service")
     user = relationship("User")
 
 class CarouselImage(Base):
@@ -82,9 +86,10 @@ class ContactMessage(Base):
     name = Column(String(100), nullable=False)  # 联系人姓名
     email = Column(String(100), nullable=False)  # 联系人邮箱
     phone = Column(String(50))  # 联系人电话
-    subject = Column(String(200), nullable=True)  # 咨询主题
     message = Column(Text, nullable=False)  # 留言内容
+    status = Column(Enum('new', 'read', 'replied'), default='new')  # 留言状态
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))  # 提交时间
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))  # 更新时间
     user = relationship("User")
 
 class Service(Base):
