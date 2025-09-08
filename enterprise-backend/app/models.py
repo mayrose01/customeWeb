@@ -35,6 +35,7 @@ class Product(Base):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)  # 产品名称
+    model = Column(String(255), nullable=True)  # 产品型号
     description = Column(Text, nullable=True)  # 产品描述
     price = Column(DECIMAL(10,2), nullable=True)  # 产品价格
     image_url = Column(String(255), nullable=True)  # 产品图片

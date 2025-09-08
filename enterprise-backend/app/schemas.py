@@ -87,7 +87,7 @@ class ProductOut(BaseModel):
         return cls(
             id=obj.id,
             title=obj.name,  # name -> title
-            model=None,  # 数据库中没有model字段
+            model=obj.model,  # 从数据库model字段获取
             short_desc=obj.description,  # description -> short_desc
             detail=obj.description,  # description -> detail
             images=[obj.image_url] if obj.image_url else [],  # image_url -> images

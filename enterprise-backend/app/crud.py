@@ -204,6 +204,7 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
     # 字段映射：将schema字段映射到数据库模型字段
     product_data = {
         "name": data.title,  # title -> name
+        "model": data.model,  # model -> model
         "description": data.detail or data.short_desc,  # detail/short_desc -> description
         "image_url": data.images[0] if data.images else None,  # images[0] -> image_url
         "category_id": data.category_id
@@ -258,6 +259,7 @@ def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) ->
     old_data = {
         'id': product.id,
         'name': product.name,
+        'model': product.model,
         'description': product.description,
         'category_id': product.category_id,
         'image_url': product.image_url
@@ -279,6 +281,8 @@ def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) ->
     update_data = {}
     if hasattr(data, 'title') and data.title is not None:
         update_data['name'] = data.title
+    if hasattr(data, 'model') and data.model is not None:
+        update_data['model'] = data.model
     if hasattr(data, 'detail') and data.detail is not None:
         update_data['description'] = data.detail
     elif hasattr(data, 'short_desc') and data.short_desc is not None:
@@ -315,6 +319,7 @@ def delete_product(db: Session, product_id: int) -> bool:
     product_data = {
         'id': product.id,
         'name': product.name,
+        'model': product.model,
         'description': product.description,
         'category_id': product.category_id,
         'image_url': product.image_url,
@@ -336,6 +341,7 @@ def copy_product(db: Session, product_id: int) -> models.Product:
     # 创建新产品对象，复制原产品的所有字段（除了id和时间字段）
     new_product_data = {
         'name': original_product.name,
+        'model': original_product.model,
         'description': original_product.description,
         'image_url': original_product.image_url,
         'price': original_product.price,
