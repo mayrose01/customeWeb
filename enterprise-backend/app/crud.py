@@ -333,20 +333,11 @@ def copy_product(db: Session, product_id: int) -> models.Product:
 # Inquiry
 
 def create_inquiry(db: Session, data: schemas.InquiryCreate) -> models.Inquiry:
-    # 如果提供了产品ID，自动填充产品信息
-    if data.product_id:
-        product = get_product(db, data.product_id)
-        if product:
-            if not data.product_title:
-                data.product_title = product.title
-            if not data.product_model:
-                data.product_model = product.model
-    
     inquiry = models.Inquiry(**data.dict())
     db.add(inquiry)
     db.commit()
     db.refresh(inquiry)
-    logger.info(f"创建询盘: ID={inquiry.id}, 客户={inquiry.customer_name}, 邮箱={inquiry.customer_email}, 手机={inquiry.customer_phone}")
+    logger.info(f"创建询盘: ID={inquiry.id}, 客户={inquiry.name}, 邮箱={inquiry.email}, 手机={inquiry.phone}")
     return inquiry
 
 def get_inquiries(db: Session, skip=0, limit=100) -> List[models.Inquiry]:
@@ -766,40 +757,27 @@ def get_user_consultations(db: Session, user_id: int, skip: int = 0, limit: int 
     consultations = query.offset(skip).limit(limit).all()
     return consultations, total
 
-def create_inquiry_with_user(db: Session, data: schemas.InquiryCreate, user_id: Optional[int] = None) -> models.Inquiry:
+def create_inquiry_with_user(db: Session, data: schemas.InquiryCreateWithUser, user_id: Optional[int] = None) -> models.Inquiry:
     """创建询价记录（支持用户关联）"""
     # 处理前端发送的数据格式
-    inquiry_data = {}
-    
-    # 映射字段名
-    inquiry_data["product_id"] = getattr(data, 'product_id', None)
-    inquiry_data["product_title"] = getattr(data, 'product_name', None) or getattr(data, 'product_title', None)
-    inquiry_data["product_model"] = getattr(data, 'product_model', None)
-    inquiry_data["product_image"] = getattr(data, 'product_image', None)
-    inquiry_data["customer_name"] = getattr(data, 'name', None) or getattr(data, 'customer_name', None)
-    inquiry_data["customer_email"] = getattr(data, 'email', None) or getattr(data, 'customer_email', None)
-    inquiry_data["customer_phone"] = getattr(data, 'phone', None) or getattr(data, 'customer_phone', None)
-    inquiry_data["inquiry_content"] = getattr(data, 'content', None) or getattr(data, 'inquiry_content', None)
-    inquiry_data["inquiry_subject"] = getattr(data, 'inquiry_subject', None)
+    inquiry_data = {
+        "product_id": data.product_id,
+        "service_id": data.service_id,
+        "name": data.name,
+        "email": data.email,
+        "phone": data.phone,
+        "message": data.message
+    }
     
     if user_id:
         inquiry_data["user_id"] = user_id
-    
-    # 如果提供了产品ID，自动填充产品信息
-    if inquiry_data["product_id"]:
-        product = get_product(db, inquiry_data["product_id"])
-        if product:
-            inquiry_data["product_title"] = product.title
-            inquiry_data["product_model"] = product.model
-            if product.images and len(product.images) > 0:
-                inquiry_data["product_image"] = product.images[0]  # 使用第一张图片
     
     inquiry = models.Inquiry(**inquiry_data)
     db.add(inquiry)
     db.commit()
     db.refresh(inquiry)
     
-    logger.info(f"创建询价记录: ID={inquiry.id}, 用户ID={user_id}, 产品ID={inquiry_data['product_id']}")
+    logger.info(f"创建询价记录: ID={inquiry.id}, 用户ID={user_id}, 产品ID={data.product_id}, 服务ID={data.service_id}")
     return inquiry
 
 def create_contact_message_with_user(db: Session, data: schemas.ContactMessageCreate, user_id: Optional[int] = None) -> models.ContactMessage:

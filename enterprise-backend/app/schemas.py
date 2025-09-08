@@ -85,14 +85,11 @@ class ProductListResponse(BaseModel):
 class InquiryBase(BaseModel):
     user_id: Optional[int] = None  # 用户ID（可选，关联用户表）
     product_id: Optional[int] = None
-    product_title: Optional[str] = None  # 产品标题
-    product_model: Optional[str] = None  # 产品型号
-    product_image: Optional[str] = None  # 产品图片
-    customer_name: str  # 询价人姓名
-    customer_email: EmailStr  # 询价人邮箱
-    customer_phone: Optional[str] = None  # 询价人电话
-    inquiry_subject: Optional[str] = None  # 询价主题
-    inquiry_content: str  # 询价内容
+    service_id: Optional[int] = None
+    name: str  # 询价人姓名
+    email: EmailStr  # 询价人邮箱
+    phone: Optional[str] = None  # 询价人电话
+    message: str  # 询价内容
 
 class InquiryCreate(InquiryBase):
     pass
@@ -100,28 +97,26 @@ class InquiryCreate(InquiryBase):
 class InquiryCreateWithUser(BaseModel):
     """兼容前端发送的询价数据格式"""
     product_id: Optional[int] = None
-    product_name: Optional[str] = None  # 前端发送的字段名
-    product_model: Optional[str] = None
-    product_image: Optional[str] = None
+    service_id: Optional[int] = None
     name: str  # 前端发送的字段名
     email: EmailStr  # 前端发送的字段名
     phone: Optional[str] = None  # 前端发送的字段名
-    content: str  # 前端发送的字段名
+    message: str  # 前端发送的字段名
 
 class InquiryOut(BaseModel):
     id: int
     user_id: Optional[int]
     product_id: Optional[int]
-    product_title: Optional[str]
-    product_model: Optional[str]
-    product_image: Optional[str]
-    customer_name: str
-    customer_email: str
-    customer_phone: Optional[str]
-    inquiry_subject: Optional[str]
-    inquiry_content: str
+    service_id: Optional[int]
+    name: str
+    email: str
+    phone: Optional[str]
+    message: str
+    status: str
     created_at: datetime
+    updated_at: datetime
     product: Optional[ProductOut] = None
+    service: Optional[ServiceOut] = None
     user: Optional['UserOut'] = None
     class Config:
         from_attributes = True
