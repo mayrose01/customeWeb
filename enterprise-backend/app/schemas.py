@@ -69,16 +69,36 @@ class ProductUpdate(ProductBase):
 
 class ProductOut(BaseModel):
     id: int
-    name: str
-    description: Optional[str]
-    price: Optional[float]
-    image_url: Optional[str]
+    title: str  # 映射自 name
+    model: Optional[str] = None  # 从数据库中没有，设为None
+    short_desc: Optional[str] = None  # 映射自 description
+    detail: Optional[str] = None  # 映射自 description
+    images: Optional[List[str]] = []  # 映射自 image_url
     category_id: Optional[int]
     sort_order: Optional[int]
     is_active: Optional[int]
     created_at: datetime
     updated_at: datetime
     category: Optional[CategoryOut]
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """自定义ORM转换，将数据库字段映射到前端期望的字段"""
+        return cls(
+            id=obj.id,
+            title=obj.name,  # name -> title
+            model=None,  # 数据库中没有model字段
+            short_desc=obj.description,  # description -> short_desc
+            detail=obj.description,  # description -> detail
+            images=[obj.image_url] if obj.image_url else [],  # image_url -> images
+            category_id=obj.category_id,
+            sort_order=obj.sort_order,
+            is_active=obj.is_active,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+            category=obj.category
+        )
+    
     class Config:
         from_attributes = True
 
