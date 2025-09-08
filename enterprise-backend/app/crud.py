@@ -257,10 +257,10 @@ def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) ->
     # 记录更新前的数据
     old_data = {
         'id': product.id,
-        'title': product.title,
-        'model': product.model,
+        'name': product.name,
+        'description': product.description,
         'category_id': product.category_id,
-        'images': product.images
+        'image_url': product.image_url
     }
     
     # 如果更新了分类，验证新分类是否为子分类
@@ -275,17 +275,32 @@ def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) ->
             logger.warning(f"尝试将产品挂在大类目下: product_id={product_id}, category_id={data.category_id}, 分类名称={category.name}")
             raise ValueError("产品只能挂在子分类下，不能直接挂在大类目下")
     
-    for k, v in data.dict(exclude_unset=True).items():
+    # 字段映射：将schema字段映射到数据库模型字段
+    update_data = {}
+    if hasattr(data, 'title') and data.title is not None:
+        update_data['name'] = data.title
+    if hasattr(data, 'detail') and data.detail is not None:
+        update_data['description'] = data.detail
+    elif hasattr(data, 'short_desc') and data.short_desc is not None:
+        update_data['description'] = data.short_desc
+    if hasattr(data, 'images') and data.images is not None and len(data.images) > 0:
+        update_data['image_url'] = data.images[0]
+    if hasattr(data, 'category_id') and data.category_id is not None:
+        update_data['category_id'] = data.category_id
+    
+    # 应用更新
+    for k, v in update_data.items():
         setattr(product, k, v)
+    
     db.commit()
     db.refresh(product)
     
     new_data = {
         'id': product.id,
-        'title': product.title,
-        'model': product.model,
+        'name': product.name,
+        'description': product.description,
         'category_id': product.category_id,
-        'images': product.images
+        'image_url': product.image_url
     }
     logger.info(f"更新产品: ID={product_id}, 旧数据={old_data}, 新数据={new_data}")
     return product
