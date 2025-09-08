@@ -201,7 +201,15 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
         logger.warning(f"尝试将产品挂在大类目下: category_id={data.category_id}, 分类名称={category.name}")
         raise ValueError("产品只能挂在子分类下，不能直接挂在大类目下")
     
-    product = models.Product(**data.dict())
+    # 字段映射：将schema字段映射到数据库模型字段
+    product_data = {
+        "name": data.title,  # title -> name
+        "description": data.detail or data.short_desc,  # detail/short_desc -> description
+        "image_url": data.images[0] if data.images else None,  # images[0] -> image_url
+        "category_id": data.category_id
+    }
+    
+    product = models.Product(**product_data)
     db.add(product)
     db.commit()
     db.refresh(product)

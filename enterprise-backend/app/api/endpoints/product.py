@@ -17,7 +17,7 @@ def get_db():
 def list_products(
     page: int = Query(1, ge=1, description="页码，从1开始"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    name: Optional[str] = Query(None, description="按产品名称搜索"),
+    title: Optional[str] = Query(None, description="按产品标题搜索"),
     product_id: Optional[int] = Query(None, description="按产品ID搜索"),
     model: Optional[str] = Query(None, description="按产品型号搜索"),
     category_id: Optional[int] = Query(None, description="按产品分类筛选"),
