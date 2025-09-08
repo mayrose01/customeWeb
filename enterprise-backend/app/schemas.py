@@ -116,7 +116,7 @@ class InquiryOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     product: Optional[ProductOut] = None
-    service: Optional[ServiceOut] = None
+    service: Optional['ServiceOut'] = None
     user: Optional['UserOut'] = None
     class Config:
         from_attributes = True
