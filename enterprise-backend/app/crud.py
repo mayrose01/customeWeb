@@ -205,7 +205,7 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
     db.add(product)
     db.commit()
     db.refresh(product)
-    logger.info(f"创建产品: ID={product.id}, 标题={product.title}, 分类ID={product.category_id}, 分类名称={category.name}")
+    logger.info(f"创建产品: ID={product.id}, 名称={product.name}, 分类ID={product.category_id}, 分类名称={category.name}")
     return product
 
 def get_product(db: Session, product_id: int) -> Optional[models.Product]:

@@ -48,18 +48,11 @@ class CategoryOut(BaseModel):
         from_attributes = True
 
 class ProductBase(BaseModel):
-    title: str
-    model: Optional[str] = None
-    short_desc: Optional[str] = None  # 富文本简要介绍
-    detail: Optional[str] = None  # 富文本详情介绍
-    images: Optional[List[str]] = []  # 多张图片URL数组，最多5张
+    name: str
+    description: Optional[str] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
     category_id: int
-
-    @validator('images')
-    def validate_images(cls, v):
-        if v and len(v) > 5:
-            raise ValueError('最多只能上传5张图片')
-        return v
 
 class ProductCreate(ProductBase):
     pass
@@ -69,12 +62,13 @@ class ProductUpdate(ProductBase):
 
 class ProductOut(BaseModel):
     id: int
-    title: str
-    model: Optional[str]
-    short_desc: Optional[str]
-    detail: Optional[str]
-    images: Optional[List[str]]
-    category_id: int
+    name: str
+    description: Optional[str]
+    price: Optional[float]
+    image_url: Optional[str]
+    category_id: Optional[int]
+    sort_order: Optional[int]
+    is_active: Optional[int]
     created_at: datetime
     updated_at: datetime
     category: Optional[CategoryOut]
