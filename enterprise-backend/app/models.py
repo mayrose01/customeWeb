@@ -87,6 +87,7 @@ class ContactMessage(Base):
     name = Column(String(100), nullable=False)  # 联系人姓名
     email = Column(String(100), nullable=False)  # 联系人邮箱
     phone = Column(String(50))  # 联系人电话
+    subject = Column(String(255), nullable=True)  # 主题
     message = Column(Text, nullable=False)  # 留言内容
     status = Column(Enum('new', 'read', 'replied'), default='new')  # 留言状态
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))  # 提交时间
