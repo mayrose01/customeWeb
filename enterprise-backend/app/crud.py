@@ -314,12 +314,11 @@ def delete_product(db: Session, product_id: int) -> bool:
     # 记录删除前的数据
     product_data = {
         'id': product.id,
-        'title': product.title,
-        'model': product.model,
+        'name': product.name,
+        'description': product.description,
         'category_id': product.category_id,
-        'images': product.images,
-        'short_desc': product.short_desc,
-        'detail': product.detail
+        'image_url': product.image_url,
+        'price': product.price
     }
     
     db.delete(product)
@@ -336,11 +335,10 @@ def copy_product(db: Session, product_id: int) -> models.Product:
     
     # 创建新产品对象，复制原产品的所有字段（除了id和时间字段）
     new_product_data = {
-        'title': original_product.title,
-        'model': original_product.model,
-        'short_desc': original_product.short_desc,
-        'detail': original_product.detail,
-        'images': original_product.images,
+        'name': original_product.name,
+        'description': original_product.description,
+        'image_url': original_product.image_url,
+        'price': original_product.price,
         'category_id': original_product.category_id
     }
     
@@ -350,7 +348,7 @@ def copy_product(db: Session, product_id: int) -> models.Product:
     db.commit()
     db.refresh(new_product)
     
-    logger.info(f"复制产品: 原产品ID={product_id}, 新产品ID={new_product.id}, 标题={new_product.title}")
+    logger.info(f"复制产品: 原产品ID={product_id}, 新产品ID={new_product.id}, 标题={new_product.name}")
     return new_product
 
 # Inquiry

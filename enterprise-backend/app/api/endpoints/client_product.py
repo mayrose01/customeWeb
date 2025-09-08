@@ -30,7 +30,7 @@ def get_all_products_for_client(
         # 转换为响应模型
         result = []
         for product in products:
-            product_out = schemas.ProductOut.model_validate(product, from_attributes=True)
+            product_out = schemas.ProductOut.from_orm(product)
             result.append(product_out)
         
         return result
@@ -45,4 +45,4 @@ def get_product_for_client(product_id: int, db: Session = Depends(get_db)):
     product = crud.get_product(db, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return schemas.ProductOut.model_validate(product, from_attributes=True) 
+    return schemas.ProductOut.from_orm(product) 
