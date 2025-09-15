@@ -205,8 +205,10 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
     product_data = {
         "name": data.title,  # title -> name
         "model": data.model,  # model -> model
-        "description": data.detail or data.short_desc,  # detail/short_desc -> description
-        "image_url": data.images[0] if data.images else None,  # images[0] -> image_url
+        "short_desc": data.short_desc,  # short_desc -> short_desc
+        "detail": data.detail,  # detail -> detail
+        "images": data.images,  # images -> images (JSON数组)
+        "image_url": data.images[0] if data.images else None,  # images[0] -> image_url (兼容性)
         "category_id": data.category_id
     }
     
@@ -283,12 +285,14 @@ def update_product(db: Session, product_id: int, data: schemas.ProductUpdate) ->
         update_data['name'] = data.title
     if hasattr(data, 'model') and data.model is not None:
         update_data['model'] = data.model
+    if hasattr(data, 'short_desc') and data.short_desc is not None:
+        update_data['short_desc'] = data.short_desc
     if hasattr(data, 'detail') and data.detail is not None:
-        update_data['description'] = data.detail
-    elif hasattr(data, 'short_desc') and data.short_desc is not None:
-        update_data['description'] = data.short_desc
-    if hasattr(data, 'images') and data.images is not None and len(data.images) > 0:
-        update_data['image_url'] = data.images[0]
+        update_data['detail'] = data.detail
+    if hasattr(data, 'images') and data.images is not None:
+        update_data['images'] = data.images
+        if len(data.images) > 0:
+            update_data['image_url'] = data.images[0]  # 兼容性
     if hasattr(data, 'category_id') and data.category_id is not None:
         update_data['category_id'] = data.category_id
     
@@ -340,12 +344,17 @@ def copy_product(db: Session, product_id: int) -> models.Product:
     
     # 创建新产品对象，复制原产品的所有字段（除了id和时间字段）
     new_product_data = {
-        'name': original_product.name,
+        'name': f"{original_product.name} - 复制",
         'model': original_product.model,
         'description': original_product.description,
+        'short_desc': original_product.short_desc,  # 复制简要介绍
+        'detail': original_product.detail,  # 复制详情介绍
+        'images': original_product.images,  # 复制多张图片
         'image_url': original_product.image_url,
         'price': original_product.price,
-        'category_id': original_product.category_id
+        'category_id': original_product.category_id,
+        'sort_order': original_product.sort_order,
+        'is_active': original_product.is_active
     }
     
     new_product = models.Product(**new_product_data)
@@ -789,11 +798,13 @@ def create_inquiry_with_user(db: Session, data: schemas.InquiryCreateWithUser, u
     # 处理前端发送的数据格式
     inquiry_data = {
         "product_id": data.product_id,
-        "service_id": data.service_id,
-        "name": data.name,
-        "email": data.email,
-        "phone": data.phone,
-        "message": data.message
+        "product_title": data.product_name,
+        "product_model": data.product_model,
+        "product_image": data.product_image,
+        "customer_name": data.name,
+        "customer_email": data.email,
+        "customer_phone": data.phone,
+        "inquiry_content": data.content  # 前端发送的是content字段
     }
     
     if user_id:
@@ -804,7 +815,7 @@ def create_inquiry_with_user(db: Session, data: schemas.InquiryCreateWithUser, u
     db.commit()
     db.refresh(inquiry)
     
-    logger.info(f"创建询价记录: ID={inquiry.id}, 用户ID={user_id}, 产品ID={data.product_id}, 服务ID={data.service_id}")
+    logger.info(f"创建询价记录: ID={inquiry.id}, 用户ID={user_id}, 产品ID={data.product_id}")
     return inquiry
 
 def create_contact_message_with_user(db: Session, data: schemas.ContactMessageCreate, user_id: Optional[int] = None) -> models.ContactMessage:
