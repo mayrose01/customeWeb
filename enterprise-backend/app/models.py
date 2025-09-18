@@ -36,9 +36,12 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)  # 产品名称
     model = Column(String(255), nullable=True)  # 产品型号
-    description = Column(Text, nullable=True)  # 产品描述
+    description = Column(Text, nullable=True)  # 产品描述（保留兼容性）
+    short_desc = Column(Text, nullable=True)  # 简要介绍
+    detail = Column(Text, nullable=True)  # 详情介绍
+    images = Column(JSON, nullable=True)  # 多张图片JSON数组
     price = Column(DECIMAL(10,2), nullable=True)  # 产品价格
-    image_url = Column(String(255), nullable=True)  # 产品图片
+    image_url = Column(String(255), nullable=True)  # 产品图片（保留兼容性）
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     sort_order = Column(Integer, default=0)  # 排序字段
     is_active = Column(Integer, default=1)  # 是否启用
@@ -51,16 +54,17 @@ class Inquiry(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # 用户ID（可选，关联用户表）
     product_id = Column(Integer, ForeignKey('products.id'), nullable=True)  # 产品ID
-    service_id = Column(Integer, ForeignKey('services.id'), nullable=True)  # 服务ID
-    name = Column(String(100), nullable=False)  # 询价人姓名
-    email = Column(String(255), nullable=False)  # 询价人邮箱
-    phone = Column(String(50), nullable=True)  # 询价人电话
-    message = Column(Text, nullable=True)  # 询价内容
-    status = Column(Enum('new', 'processing', 'completed', 'cancelled'), default='new')  # 询价状态
+    product_title = Column(String(255), nullable=True)  # 产品标题
+    product_model = Column(String(100), nullable=True)  # 产品型号
+    product_image = Column(String(255), nullable=True)  # 产品图片
+    customer_name = Column(String(100), nullable=False)  # 询价人姓名
+    customer_email = Column(String(255), nullable=False)  # 询价人邮箱
+    customer_phone = Column(String(50), nullable=True)  # 询价人电话
+    inquiry_subject = Column(String(255), nullable=True)  # 询价主题
+    inquiry_content = Column(Text, nullable=False)  # 询价内容
     created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))
     product = relationship("Product")
-    service = relationship("Service")
     user = relationship("User")
 
 class CarouselImage(Base):

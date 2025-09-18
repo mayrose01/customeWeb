@@ -51,12 +51,13 @@ export default defineConfig(({ command, mode }) => {
         '/api': {
           target: env.VITE_API_BASE_URL || getDefaultApiUrl(),
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api')
+          rewrite: (path) => path.replace(/^\/api/, '')
         }
       }
     },
     // 构建配置
     build: {
+      base: '/',
       outDir: 'dist',
       assetsDir: 'assets',
       sourcemap: mode === 'development',

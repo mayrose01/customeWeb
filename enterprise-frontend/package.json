@@ -21,7 +21,16 @@
     "env:prod": "./scripts/switch-env.sh production",
     "deploy:dev": "npm run env:dev && npm run build:dev",
     "deploy:test": "./scripts/deploy-test.sh",
-    "deploy:prod": "npm run env:prod && npm run build:prod"
+    "deploy:prod": "npm run env:prod && npm run build:prod",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix",
+    "lint:check": "eslint . --ext .vue,.js,.ts,.jsx,.tsx",
+    "type-check": "vue-tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@rollup/rollup-darwin-arm64": "^4.50.0",

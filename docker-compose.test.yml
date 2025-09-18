@@ -1,89 +1,96 @@
+# 测试环境 Docker Compose 覆盖文件
+# 用于测试环境，包含代码热更新和本地开发配置
+
+version: '3.8'
+
 services:
-  # 测试环境MySQL数据库
+  # MySQL数据库 - 测试环境配置
   mysql_test:
     image: mysql:8.0
     container_name: enterprise_mysql_test
     restart: unless-stopped
+    ports:
+      - "3307:3306"  # 测试环境使用不同端口
     environment:
       MYSQL_ROOT_PASSWORD: testpassword
       MYSQL_DATABASE: enterprise_test
       MYSQL_USER: test_user
       MYSQL_PASSWORD: test_password
-    ports:
-      - "3307:3306"  # 使用不同端口避免冲突
     volumes:
       - mysql_test_data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - enterprise_test_network
 
-  # 测试环境后端API服务
-  backend_test:
-    build:
-      context: ./enterprise-backend
-      dockerfile: Dockerfile
+  # 后端API服务 - 测试环境配置
+  backend:
+    image: enterprise-backend_test:latest
     container_name: enterprise_backend_test
     restart: unless-stopped
+    ports:
+      - "8001:8000"  # 测试环境使用不同端口
     environment:
-      - DATABASE_URL=mysql://test_user:test_password@mysql_test:3306/enterprise_test
-      - SECRET_KEY=test-secret-key-2024
+      - ENVIRONMENT=testing
+      - DATABASE_URL=mysql+pymysql://test_user:test_password@mysql_test:3306/enterprise_test
+      - SECRET_KEY=test_enterprise_secret_key_2024
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=["http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://test.catusfoto.top:3001", "http://test.catusfoto.top"]
+      - CORS_ORIGINS=["http://localhost", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:8080", "http://test.catusfoto.top", "http://test.catusfoto.top:3001"]
       - SMTP_SERVER=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_USERNAME=your-email@gmail.com
       - SMTP_PASSWORD=your-app-password
-      - UPLOAD_DIR=uploads_test
+      - UPLOAD_DIR=uploads
       - MAX_FILE_SIZE=2097152
+      - FILE_BASE_URL=http://localhost:8001
       - LOG_LEVEL=DEBUG
-      - LOG_FILE=logs/app_test.log
-    ports:
-      - "8001:8000"  # 使用不同端口避免冲突
+      - WORKERS=2
     volumes:
-      - ./enterprise-backend/uploads_test:/app/uploads
-      - ./enterprise-backend/logs:/app/logs
+      # 测试环境挂载代码目录，支持热更新
+      - ./enterprise-backend:/app:ro
+      - backend_test_uploads:/app/uploads
+      - backend_test_logs:/app/logs
+    user: "1000:1000"  # 使用当前用户权限
+    networks:
+      - enterprise_test_network
     depends_on:
       - mysql_test
-    networks:
-      - enterprise_test_network
 
-  # 测试环境前端服务
-  frontend_test:
-    build:
-      context: ./enterprise-frontend
-      dockerfile: Dockerfile
+  # 前端服务 - 测试环境配置
+  frontend:
     container_name: enterprise_frontend_test
-    restart: unless-stopped
-    environment:
-      - VITE_API_BASE_URL=http://test.catusfoto.top:8001/api
     ports:
-      - "3001:80"  # 使用不同端口避免冲突
-    depends_on:
-      - backend_test
+      - "3001:80"  # 测试环境使用不同端口
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8001/api}
+      - VITE_APP_TITLE=企业官网-测试环境
+    volumes:
+      # 测试环境挂载代码目录，支持热更新
+      - ./enterprise-frontend:/app:ro
     networks:
       - enterprise_test_network
 
-  # 测试环境Nginx反向代理
-  nginx_test:
-    image: nginx:alpine
+  # Nginx反向代理 - 测试环境配置
+  nginx:
     container_name: enterprise_nginx_test
-    restart: unless-stopped
     ports:
-      - "8080:80"  # 使用不同端口避免冲突
+      - "8080:80"  # 测试环境使用不同端口
       - "8443:443"
     volumes:
-      - ./nginx/nginx.test.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend_test
-      - backend_test
+      - ./nginx/nginx.test.conf:/etc/nginx/nginx.conf:ro
     networks:
       - enterprise_test_network
 
+# 测试环境专用数据卷
 volumes:
   mysql_test_data:
+    driver: local
+  backend_test_uploads:
+    driver: local
+  backend_test_logs:
+    driver: local
 
+# 测试环境专用网络
 networks:
   enterprise_test_network:
-    driver: bridge 
+    driver: bridge

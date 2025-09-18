@@ -1,0 +1,54 @@
+# 数据库迁移服务配置
+# 用于在部署时自动运行数据库迁移
+
+version: '3.8'
+
+services:
+  # 数据库迁移服务
+  migration:
+    build:
+      context: ./enterprise-backend
+      dockerfile: Dockerfile
+    container_name: enterprise_migration
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    command: >
+      sh -c "
+        echo '🔄 等待数据库启动...' &&
+        sleep 10 &&
+        echo '📝 运行数据库迁移...' &&
+        python migrate.py upgrade head &&
+        echo '✅ 数据库迁移完成'
+      "
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - enterprise_network
+    restart: "no"  # 迁移完成后不重启
+
+  # 数据库迁移检查服务
+  migration-check:
+    build:
+      context: ./enterprise-backend
+      dockerfile: Dockerfile
+    container_name: enterprise_migration_check
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    command: >
+      sh -c "
+        echo '🔍 检查数据库迁移状态...' &&
+        python migrate.py current &&
+        echo '📋 显示迁移历史...' &&
+        python migrate.py history
+      "
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - enterprise_network
+    restart: "no"  # 检查完成后不重启

@@ -1,106 +1,125 @@
+# 生产环境 Docker Compose 覆盖文件
+# 用于生产环境，不包含代码挂载，使用构建的镜像
+
+version: '3.8'
+
 services:
-  # 生产环境MySQL数据库
-  mysql_prod:
-    image: mysql:8.0
+  # MySQL数据库 - 生产环境配置
+  mysql:
     container_name: enterprise_mysql_prod
-    restart: unless-stopped
+    ports:
+      - "3306:3306"
     environment:
+      # 生产环境数据库配置通过环境变量注入
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: enterprise_pro
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "3309:3306"  # 使用不同端口避免冲突
     volumes:
       - mysql_prod_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./backups:/backups
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
-      - enterprise_prod_network
-    command: --default-authentication-plugin=mysql_native_password
+      - enterprise_network
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
-  # 生产环境后端API服务
-  backend_prod:
-    build:
-      context: ./enterprise-backend
-      dockerfile: Dockerfile
+  # 后端API服务 - 生产环境配置
+  backend:
     container_name: enterprise_backend_prod
-    restart: unless-stopped
+    ports:
+      - "8000:8000"
     environment:
-      - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql_prod:3306/enterprise_pro
+      # 生产环境配置通过环境变量注入
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
       - SECRET_KEY=${SECRET_KEY}
-      - ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=["https://yourdomain.com", "https://www.yourdomain.com"]
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - SMTP_SERVER=${SMTP_SERVER}
-      - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - UPLOAD_DIR=uploads_prod
-      - MAX_FILE_SIZE=2097152
       - LOG_LEVEL=INFO
       - LOG_FILE=logs/app_prod.log
-    ports:
-      - "8000:8000"  # 生产环境端口
+      - WORKERS=${WORKERS:-8}  # 生产环境使用更多worker
     volumes:
-      - ./enterprise-backend/uploads_prod:/app/uploads
-      - ./enterprise-backend/logs:/app/logs
-    depends_on:
-      - mysql_prod
+      # 生产环境不挂载代码，使用构建的镜像
+      - backend_prod_uploads:/app/uploads
+      - backend_prod_logs:/app/logs
     networks:
-      - enterprise_prod_network
+      - enterprise_network
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    # 生产环境健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # 生产环境前端服务
-  frontend_prod:
-    build:
-      context: ./enterprise-frontend
-      dockerfile: Dockerfile
+  # 前端服务 - 生产环境配置
+  frontend:
     container_name: enterprise_frontend_prod
-    restart: unless-stopped
-    environment:
-      - VITE_API_BASE_URL=https://yourdomain.com/api
     ports:
-      - "3000:80"  # 生产环境端口
-    depends_on:
-      - backend_prod
+      - "3000:80"
+    environment:
+      # 生产环境配置通过环境变量注入
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-企业官网}
     networks:
-      - enterprise_prod_network
+      - enterprise_network
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
 
-  # 生产环境Nginx反向代理
-  nginx_prod:
-    image: nginx:alpine
+  # Nginx反向代理 - 生产环境配置
+  nginx:
     container_name: enterprise_nginx_prod
-    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - frontend_prod
-      - backend_prod
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_prod_logs:/var/log/nginx
     networks:
-      - enterprise_prod_network
+      - enterprise_network
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
-  # 生产环境Redis缓存（可选）
-  redis_prod:
-    image: redis:7-alpine
-    container_name: enterprise_redis_prod
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_prod_data:/data
-    networks:
-      - enterprise_prod_network
-    command: redis-server --appendonly yes
-
+# 生产环境专用数据卷
 volumes:
   mysql_prod_data:
-  redis_prod_data:
-
-networks:
-  enterprise_prod_network:
-    driver: bridge 
+    driver: local
+  backend_prod_uploads:
+    driver: local
+  backend_prod_logs:
+    driver: local
+  nginx_prod_logs:
+    driver: local

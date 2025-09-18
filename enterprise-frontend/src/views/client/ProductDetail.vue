@@ -73,10 +73,6 @@
                 <div v-html="product.detail" style="text-align: center;"></div>
               </div>
 
-              <div class="product-category" v-if="categoryName">
-                <h3>产品分类</h3>
-                <p>{{ categoryName }}</p>
-              </div>
 
               <div class="product-actions">
                 <button class="inquiry-btn" @click="showInquiryModal">
@@ -145,11 +141,15 @@ export default {
     const loading = ref(true)
     const product = ref({})
     const categories = ref([])
+    const topCategories = ref([])
     const currentImageIndex = ref(0)
     const imageDisplayMode = ref('contain')
     
     // 询价相关
     const showInquiry = ref(false)
+    
+    // 面包屑下拉菜单相关
+    const isBreadcrumbDropdownVisible = ref(true)
 
     const currentImage = computed(() => {
       if (product.value.images && product.value.images.length > 0) {
@@ -186,6 +186,8 @@ export default {
       try {
         const response = await getCategories()
         categories.value = response.data
+        // 只获取顶级分类（parent_id为null）
+        topCategories.value = response.data.filter(cat => !cat.parent_id)
       } catch (error) {
         console.error('加载分类失败:', error)
       }
@@ -214,6 +216,21 @@ export default {
 
     const goBack = () => {
       router.back()
+    }
+
+    // 面包屑下拉菜单相关方法
+    const toggleBreadcrumbDropdown = () => {
+      isBreadcrumbDropdownVisible.value = !isBreadcrumbDropdownVisible.value
+    }
+
+    const goToCategory = (categoryId) => {
+      router.push(getClientPath(`/categories/${categoryId}`))
+      isBreadcrumbDropdownVisible.value = false
+    }
+
+    const goToAllProducts = () => {
+      router.push(getClientPath('/all-products'))
+      isBreadcrumbDropdownVisible.value = false
     }
 
     const handleImageError = (event) => {
@@ -285,17 +302,22 @@ export default {
       loading,
       product,
       categories,
+      topCategories,
       currentImageIndex,
       currentImage,
       categoryName,
       showInquiry,
       imageDisplayMode,
+      isBreadcrumbDropdownVisible,
       setCurrentImage,
       showInquiryModal,
       closeInquiryModal,
       handleInquirySuccess,
       goToContact,
       goBack,
+      toggleBreadcrumbDropdown,
+      goToCategory,
+      goToAllProducts,
       handleImageError,
       handleImageLoad,
       handleThumbnailError,
@@ -313,7 +335,7 @@ export default {
 }
 
 .main-content {
-  padding-top: 120px;
+  padding-top: 140px;
   padding-bottom: 60px;
 }
 
@@ -325,8 +347,15 @@ export default {
 
 .breadcrumb {
   margin-bottom: 30px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  line-height: 1.6;
+  padding: 12px 0;
+  position: relative;
+  z-index: 10;
 }
 
 .breadcrumb a {
@@ -340,6 +369,67 @@ export default {
 
 .breadcrumb .separator {
   margin: 0 8px;
+}
+
+/* 面包屑下拉菜单样式 */
+.breadcrumb-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.breadcrumb-trigger {
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+}
+
+.breadcrumb-trigger::after {
+  content: '▼';
+  font-size: 10px;
+  margin-left: 5px;
+  transition: transform 0.3s;
+}
+
+.breadcrumb-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid var(--color-accent-dark);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 1000;
+  margin-top: 5px;
+  padding: 5px 0;
+}
+
+.breadcrumb-dropdown-content {
+  padding: 8px 0;
+}
+
+.breadcrumb-dropdown-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumb-dropdown-item:hover {
+  background: var(--color-accent-light);
+  color: var(--color-text-primary);
+}
+
+.breadcrumb-dropdown-item.view-all {
+  border-top: 1px solid var(--color-accent-dark);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.breadcrumb-dropdown-item.view-all span {
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .product-detail {
@@ -467,15 +557,13 @@ export default {
 }
 
 .product-description,
-.product-details,
-.product-category {
+.product-details {
   border-bottom: 1px solid var(--color-accent-dark);
   padding-bottom: 20px;
 }
 
 .product-description h3,
-.product-details h3,
-.product-category h3 {
+.product-details h3 {
   color: var(--color-text-primary);
   margin: 0 0 15px 0;
   font-size: 1.3rem;
@@ -487,10 +575,6 @@ export default {
   line-height: 1.6;
 }
 
-.product-category p {
-  color: var(--color-text-secondary);
-  margin: 0;
-}
 
 .product-actions {
   display: flex;

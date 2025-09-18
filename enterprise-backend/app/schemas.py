@@ -88,9 +88,9 @@ class ProductOut(BaseModel):
             id=obj.id,
             title=obj.name,  # name -> title
             model=obj.model,  # 从数据库model字段获取
-            short_desc=obj.description,  # description -> short_desc
-            detail=obj.description,  # description -> detail
-            images=[obj.image_url] if obj.image_url else [],  # image_url -> images
+            short_desc=obj.short_desc or obj.description,  # 优先使用short_desc，兼容旧数据
+            detail=obj.detail or obj.description,  # 优先使用detail，兼容旧数据
+            images=obj.images if obj.images else ([obj.image_url] if obj.image_url else []),  # 优先使用images，兼容旧数据
             category_id=obj.category_id,
             sort_order=obj.sort_order,
             is_active=obj.is_active,
@@ -101,6 +101,8 @@ class ProductOut(BaseModel):
     
     class Config:
         from_attributes = True
+        # 使用自定义的from_orm方法
+        orm_mode = True
 
 class ProductListResponse(BaseModel):
     items: List[ProductOut]
@@ -112,7 +114,6 @@ class ProductListResponse(BaseModel):
 class InquiryBase(BaseModel):
     user_id: Optional[int] = None  # 用户ID（可选，关联用户表）
     product_id: Optional[int] = None
-    service_id: Optional[int] = None
     name: str  # 询价人姓名
     email: EmailStr  # 询价人邮箱
     phone: Optional[str] = None  # 询价人电话
@@ -124,26 +125,29 @@ class InquiryCreate(InquiryBase):
 class InquiryCreateWithUser(BaseModel):
     """兼容前端发送的询价数据格式"""
     product_id: Optional[int] = None
-    service_id: Optional[int] = None
+    product_name: Optional[str] = None  # 前端发送的产品名称
+    product_model: Optional[str] = None  # 前端发送的产品型号
+    product_image: Optional[str] = None  # 前端发送的产品图片
     name: str  # 前端发送的字段名
     email: EmailStr  # 前端发送的字段名
     phone: Optional[str] = None  # 前端发送的字段名
-    message: str  # 前端发送的字段名
+    content: str  # 前端发送的字段名（原来是message，改为content）
 
 class InquiryOut(BaseModel):
     id: int
     user_id: Optional[int]
     product_id: Optional[int]
-    service_id: Optional[int]
-    name: str
-    email: str
-    phone: Optional[str]
-    message: str
-    status: str
+    product_title: Optional[str] = None
+    product_model: Optional[str] = None
+    product_image: Optional[str] = None
+    customer_name: str
+    customer_email: str
+    customer_phone: Optional[str]
+    inquiry_subject: Optional[str] = None
+    inquiry_content: str
     created_at: datetime
     updated_at: datetime
-    product: Optional[ProductOut] = None
-    service: Optional['ServiceOut'] = None
+    # product: Optional[ProductOut] = None  # 暂时注释掉，避免序列化问题
     user: Optional['UserOut'] = None
     class Config:
         from_attributes = True

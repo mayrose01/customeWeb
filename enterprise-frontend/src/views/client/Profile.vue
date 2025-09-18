@@ -107,7 +107,7 @@
                   </div>
                   <div class="inquiry-content">
                     <p><strong>询价内容:</strong></p>
-                    <p>{{ inquiry.content }}</p>
+                    <p>{{ inquiry.inquiry_content }}</p>
                   </div>
                   <div class="inquiry-footer">
                     <span class="status">已提交</span>

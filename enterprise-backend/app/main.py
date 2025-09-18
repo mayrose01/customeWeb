@@ -30,13 +30,14 @@ os.makedirs("logs", exist_ok=True)
 Base.metadata.create_all(bind=engine)
 
 # 配置日志
+handlers = [logging.StreamHandler()]
+if settings.LOG_FILE:
+    handlers.append(logging.FileHandler(settings.LOG_FILE))
+
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(settings.LOG_FILE),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 
 logger = logging.getLogger(__name__)
@@ -63,9 +64,18 @@ if os.path.exists(settings.UPLOAD_DIR):
     app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # 健康检查接口
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
-    """健康检查接口"""
+    """健康检查接口 - 用于Docker健康检查"""
+    return {
+        "status": "healthy",
+        "environment": settings.ENVIRONMENT,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/health")
+async def api_health_check():
+    """API健康检查接口"""
     return {
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
