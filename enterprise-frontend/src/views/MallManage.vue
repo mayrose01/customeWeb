@@ -370,39 +370,34 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="价格调整" width="150">
+                <el-table-column label="SKU价格" width="150">
                   <template #default="{ row }">
                     <el-input-number 
-                      v-model="row.price_adjustment" 
-                      :min="-9999" 
-                      :max="9999" 
+                      v-model="row.price" 
+                      :min="0" 
+                      :max="99999" 
                       :precision="2"
                       size="small"
                     />
                   </template>
                 </el-table-column>
-                <el-table-column label="库存调整" width="150">
+                <el-table-column label="SKU库存" width="150">
                   <template #default="{ row }">
                     <el-input-number 
-                      v-model="row.stock_adjustment" 
-                      :min="-9999" 
-                      :max="9999"
+                      v-model="row.stock" 
+                      :min="0" 
+                      :max="99999"
                       size="small"
                     />
                   </template>
                 </el-table-column>
-                <el-table-column label="最终价格" width="120">
+                <el-table-column label="SKU编码" width="200">
                   <template #default="{ row }">
-                    <span style="color: #e6a23c; font-weight: bold;">
-                      ¥{{ (productForm.base_price + (row.price_adjustment || 0)).toFixed(2) }}
-                    </span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="最终库存" width="120">
-                  <template #default="{ row }">
-                    <span style="color: #67c23a; font-weight: bold;">
-                      {{ productForm.stock + (row.stock_adjustment || 0) }}
-                    </span>
+                    <el-input 
+                      v-model="row.sku_code" 
+                      size="small"
+                      placeholder="自动生成"
+                    />
                   </template>
                 </el-table-column>
               </el-table>
@@ -1102,8 +1097,9 @@ export default {
           if (productFromList.specificationCombinations && productFromList.specificationCombinations.length > 0) {
             productForm.specificationCombinations = productFromList.specificationCombinations.map(comb => ({
               ...comb,
-              price_adjustment: comb.price_adjustment || 0,
-              stock_adjustment: comb.stock_adjustment || 0
+              price: comb.price || productForm.base_price,
+              stock: comb.stock || productForm.stock,
+              sku_code: comb.sku_code || ''
             }))
           } else {
             // 生成默认的规格组合
@@ -1165,8 +1161,9 @@ export default {
             if (productResponse.data.specificationCombinations && productResponse.data.specificationCombinations.length > 0) {
               productForm.specificationCombinations = productResponse.data.specificationCombinations.map(comb => ({
                 ...comb,
-                price_adjustment: comb.price_adjustment || 0,
-                stock_adjustment: comb.stock_adjustment || 0
+                price: comb.price || productForm.base_price,
+                stock: comb.stock || productForm.stock,
+                sku_code: comb.sku_code || ''
               }))
             } else {
               // 生成默认的规格组合
@@ -1237,8 +1234,9 @@ export default {
                 
                 return {
                   specs: specs.filter(spec => spec.name && spec.value),
-                  price_adjustment: (sku.price - productForm.base_price) || 0,
-                  stock_adjustment: (sku.stock - productForm.stock) || 0
+                  price: sku.price || productForm.base_price,
+                  stock: sku.stock || productForm.stock,
+                  sku_code: sku.sku_code || ''
                 }
               })
               .filter(comb => comb.specs.length > 0)
@@ -1526,7 +1524,7 @@ export default {
           // 设置表单数据
           Object.assign(productForm, editData)
           
-          // 简化规格数据加载
+          // 加载规格数据
           if (editData.specifications && Array.isArray(editData.specifications)) {
             const specs = editData.specifications
               .filter(spec => spec && spec.name && typeof spec.name === 'string' && spec.name.trim() !== '')
@@ -1557,10 +1555,44 @@ export default {
               .filter(spec => spec.values.length > 0)
             
             productForm.specifications = specs
-            // 延迟更新规格组合，避免立即执行
-            setTimeout(() => {
-              updateSpecificationCombinations()
-            }, 100)
+            
+            // 从SKU数据重建规格组合
+            if (editData.skus && Array.isArray(editData.skus) && editData.skus.length > 0) {
+              console.log('从SKU数据重建规格组合:', editData.skus)
+              
+              const combinations = editData.skus
+                .filter(sku => sku && sku.specifications && typeof sku.specifications === 'object')
+                .map(sku => {
+                  const specs = []
+                  if (sku.specifications) {
+                    Object.entries(sku.specifications).forEach(([name, value]) => {
+                      if (name && value && typeof name === 'string' && typeof value === 'string' && 
+                          name.trim() !== '' && value.trim() !== '') {
+                        specs.push({ 
+                          name: name.trim(), 
+                          value: value.trim() 
+                        })
+                      }
+                    })
+                  }
+                  
+                  return {
+                    specs: specs.filter(spec => spec.name && spec.value),
+                    price: sku.price || editData.base_price,
+                    stock: sku.stock || editData.stock,
+                    sku_code: sku.sku_code || ''
+                  }
+                })
+                .filter(comb => comb.specs.length > 0)
+              
+              productForm.specificationCombinations = combinations
+              console.log('重建的规格组合:', combinations)
+            } else {
+              // 如果没有SKU数据，生成默认的规格组合
+              setTimeout(() => {
+                updateSpecificationCombinations()
+              }, 100)
+            }
           } else {
             productForm.specifications = []
             productForm.specificationCombinations = []
@@ -1568,6 +1600,16 @@ export default {
           
           // 显示对话框
           productDialogVisible.value = true
+          
+          // 确保富文本编辑器正确设置内容
+          nextTick(() => {
+            setTimeout(() => {
+              if (editorRef.value && editData.description) {
+                console.log('设置编辑器内容:', editData.description)
+                editorRef.value.setHtml(editData.description)
+              }
+            }, 200) // 延迟一点确保编辑器完全初始化
+          })
         }
       } catch (error) {
         console.error('获取产品数据失败:', error)
@@ -1652,8 +1694,9 @@ export default {
         if (productData.specificationCombinations && Array.isArray(productData.specificationCombinations)) {
           productData.specificationCombinations = productData.specificationCombinations.map(comb => ({
             ...comb,
-            price_adjustment: comb.price_adjustment || 0,
-            stock_adjustment: comb.stock_adjustment || 0
+            price: comb.price || productForm.base_price,
+            stock: comb.stock || productForm.stock,
+            sku_code: comb.sku_code || ''
           }))
         } else {
           productData.specificationCombinations = []
@@ -1791,9 +1834,9 @@ export default {
                     
                     const skuData = {
                       product_id: productId,
-                      sku_code: `${productData.title}_${comb.specs.map(s => s.value).join('_')}`,
-                      price: parseFloat((productForm.base_price + (comb.price_adjustment || 0)).toFixed(2)),
-                      stock: parseInt(productForm.stock + (comb.stock_adjustment || 0)),
+                      sku_code: comb.sku_code || `${productData.title}_${comb.specs.map(s => s.value).join('_')}`,
+                      price: parseFloat((comb.price || productForm.base_price).toFixed(2)),
+                      stock: parseInt(comb.stock || productForm.stock),
                       weight: 0.0, // 添加默认重量字段
                       specifications: comb.specs.reduce((acc, spec) => {
                         if (spec.name && spec.value && typeof spec.name === 'string' && typeof spec.value === 'string') {
@@ -1836,28 +1879,8 @@ export default {
         ElMessage.success('保存成功')
         productDialogVisible.value = false
         
-        // 更新产品列表中的对应产品，保留规格信息
-        if (productDialogType.value === 'edit' && savedProduct) {
-          const index = products.value.findIndex(p => p.id === productData.id)
-          if (index !== -1) {
-            // 更新产品信息，保留规格数据
-            const updatedProduct = {
-              ...products.value[index],
-              specifications: productForm.specifications,
-              specificationCombinations: productForm.specificationCombinations
-            }
-            
-            // 只有当savedProduct.data是对象时才展开
-            if (savedProduct.data && typeof savedProduct.data === 'object' && !Array.isArray(savedProduct.data)) {
-              Object.assign(updatedProduct, savedProduct.data)
-            }
-            
-            products.value[index] = updatedProduct
-          }
-        } else {
-          // 新增产品或更新失败，重新加载整个列表
-          loadProducts()
-        }
+        // 保存成功后重新加载产品列表，确保数据同步
+        loadProducts()
       } catch (error) {
         console.error('保存产品失败:', error)
         ElMessage.error('保存失败')
@@ -2035,8 +2058,9 @@ export default {
               if (validCombination.length > 0) {
                 combinations.push({
                   specs: validCombination,
-                  price_adjustment: 0, // 默认价格调整
-                  stock_adjustment: 0 // 默认库存调整
+                  price: productForm.base_price, // 默认价格
+                  stock: productForm.stock, // 默认库存
+                  sku_code: '' // 默认SKU编码
                 })
                 combinationCount++
               }
@@ -2066,20 +2090,22 @@ export default {
         existingCombinations.forEach(comb => {
           const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
           existingValues[key] = {
-            price_adjustment: comb.price_adjustment || 0,
-            stock_adjustment: comb.stock_adjustment || 0
+            price: comb.price || productForm.base_price,
+            stock: comb.stock || productForm.stock,
+            sku_code: comb.sku_code || ''
           }
         })
 
-        // 根据规格组合生成最终的规格组合列表，保留现有的价格和库存调整值
+        // 根据规格组合生成最终的规格组合列表，保留现有的价格和库存值
         productForm.specificationCombinations = combinations.map(comb => {
           const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
-          const existingValue = existingValues[key] || { price_adjustment: 0, stock_adjustment: 0 }
+          const existingValue = existingValues[key] || { price: productForm.base_price, stock: productForm.stock, sku_code: '' }
           
           return {
             ...comb,
-            price_adjustment: existingValue.price_adjustment,
-            stock_adjustment: existingValue.stock_adjustment
+            price: existingValue.price || productForm.base_price,
+            stock: existingValue.stock || productForm.stock,
+            sku_code: existingValue.sku_code || ''
           }
         })
         
@@ -2347,6 +2373,7 @@ export default {
       // 确保编辑器正确初始化
       nextTick(() => {
         if (editorRef.value && productForm.description) {
+          console.log('编辑器创建后设置内容:', productForm.description)
           editorRef.value.setHtml(productForm.description)
         }
       })
