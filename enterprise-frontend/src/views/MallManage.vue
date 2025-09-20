@@ -1712,8 +1712,8 @@ export default {
                 }
                 
                 let savedSpec
-                // 检查规格ID是否有效（数据库ID通常小于1000）
-                if (spec.id && typeof spec.id === 'number' && spec.id > 0 && spec.id < 1000) {
+                // 检查规格ID是否有效（数据库ID）
+                if (spec.id && typeof spec.id === 'number' && spec.id > 0) {
                   // 如果是有效的数据库ID，更新现有规格
                   try {
                     savedSpec = await updateMallProductSpecification(spec.id, specData)
