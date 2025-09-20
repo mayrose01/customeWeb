@@ -1183,9 +1183,17 @@ def delete_mall_product_specification(db: Session, spec_id: int) -> bool:
     if not spec:
         return False
     
+    # 先删除相关的规格值
+    values = db.query(models.MallProductSpecificationValue).filter(
+        models.MallProductSpecificationValue.specification_id == spec_id
+    ).all()
+    for value in values:
+        db.delete(value)
+    
+    # 再删除规格
     db.delete(spec)
     db.commit()
-    logger.info(f"删除商城产品规格: ID={spec_id}")
+    logger.info(f"删除商城产品规格: ID={spec_id}, 同时删除了 {len(values)} 个规格值")
     return True
 
 # 商城产品规格值CRUD

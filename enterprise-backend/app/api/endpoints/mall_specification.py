@@ -71,6 +71,18 @@ def delete_mall_specification_value(value_id: int, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="商城规格值不存在")
     return {"message": "商城规格值删除成功"}
 
+@router.delete("/{spec_id}/values")
+def delete_mall_specification_values(spec_id: int, db: Session = Depends(get_db)):
+    """删除规格的所有值"""
+    # 获取规格的所有值
+    values = crud.get_mall_product_specification_values(db, spec_id)
+    deleted_count = 0
+    for value in values:
+        if crud.delete_mall_product_specification_value(db, value.id):
+            deleted_count += 1
+    
+    return {"message": f"删除了 {deleted_count} 个规格值"}
+
 # 商城SKU管理（基于规格组合）
 @router.get("/sku/product/{product_id}", response_model=List[schemas.MallProductSKUOut])
 def get_mall_product_skus(product_id: int, db: Session = Depends(get_db)):
