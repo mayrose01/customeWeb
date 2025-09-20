@@ -140,6 +140,9 @@ build/
 server_config.env
 *.env.local
 *.env.production
+*.env
+enterprise-backend/*.env
+backup_*/enterprise-backend/*.env
 
 # SSH private keys
 *.pem
