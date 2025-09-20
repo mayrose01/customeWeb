@@ -144,4 +144,9 @@ server_config.env
 # SSH private keys
 *.pem
 *.key
-enterprise_prod.pem 
+enterprise_prod.pem
+
+# GitHub Actions workflows (to avoid permission issues)
+.github/workflows/
+.github/workflows/*.yml
+.github/workflows/*.yaml 
