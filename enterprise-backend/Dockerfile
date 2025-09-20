@@ -1,7 +1,7 @@
 # 企业官网后端服务 Dockerfile
 # 适用于所有环境：开发、测试、生产
 
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # 设置工作目录
 WORKDIR /app
