@@ -6,7 +6,7 @@
       <div class="container">
         <div class="order-detail-header">
           <h1>订单详情</h1>
-          <p>订单号：{{ order.order_number }}</p>
+          <p>订单号：{{ order.order_no }}</p>
         </div>
 
         <div class="order-detail-content">
@@ -36,12 +36,19 @@
           <div class="delivery-section">
             <h2>收货信息</h2>
             <div class="delivery-info">
-              <div class="contact-info">
-                <span class="name">{{ order.delivery?.name }}</span>
-                <span class="phone">{{ order.delivery?.phone }}</span>
+              <div class="contact-info" v-if="order.shipping_address">
+                <div v-if="getRecipientName(order.shipping_address)" class="recipient-name">
+                  <span class="label">收件人：</span>{{ getRecipientName(order.shipping_address) }}
+                </div>
+                <div v-if="getRecipientPhone(order.shipping_address)" class="recipient-phone">
+                  <span class="label">电话：</span>{{ getRecipientPhone(order.shipping_address) }}
+                </div>
+                <div class="recipient-address">
+                  <span class="label">地址：</span>{{ getRecipientAddress(order.shipping_address) }}
+                </div>
               </div>
-              <div class="address">
-                {{ order.delivery?.address }}
+              <div v-else class="no-address">
+                <span>暂无收货地址</span>
               </div>
             </div>
           </div>
@@ -49,7 +56,7 @@
           <!-- 商品信息 -->
           <div class="products-section">
             <h2>商品信息</h2>
-            <div class="products-list">
+            <div v-if="order.items && order.items.length > 0" class="products-list">
               <div 
                 v-for="item in order.items" 
                 :key="item.id"
@@ -57,23 +64,23 @@
               >
                 <div class="product-image">
                   <img 
-                    v-if="item.product_image" 
-                    :src="getImageUrl(item.product_image)" 
-                    :alt="item.product_title"
+                    v-if="item.product && item.product.images && item.product.images.length > 0" 
+                    :src="getImageUrl(item.product.images[0])" 
+                    :alt="item.product.title"
                   />
                   <div v-else class="image-placeholder">
                     <span>📦</span>
                   </div>
                 </div>
                 <div class="product-info">
-                  <h3>{{ item.product_title }}</h3>
-                  <div class="product-specs" v-if="item.specifications">
+                  <h3>{{ item.product_name || item.product?.title || '商品已下架' }}</h3>
+                  <div class="product-specs" v-if="item.sku_specifications && Object.keys(item.sku_specifications).length > 0">
                     <span 
-                      v-for="spec in item.specifications" 
-                      :key="spec.name"
+                      v-for="(value, key) in item.sku_specifications" 
+                      :key="key"
                       class="spec-tag"
                     >
-                      {{ spec.name }}：{{ spec.value }}
+                      {{ key }}：{{ value }}
                     </span>
                   </div>
                 </div>
@@ -84,9 +91,13 @@
                   <span>x{{ item.quantity }}</span>
                 </div>
                 <div class="product-total">
-                  <span class="total">¥{{ (parseFloat(item.price || 0) * item.quantity).toFixed(2) }}</span>
+                  <span class="total">¥{{ parseFloat(item.subtotal || 0).toFixed(2) }}</span>
                 </div>
               </div>
+            </div>
+            <div v-else class="no-products">
+              <p>暂无商品信息</p>
+              <p class="debug-info">调试信息: order.items = {{ order.items }}</p>
             </div>
           </div>
 
@@ -96,7 +107,7 @@
             <div class="order-info-grid">
               <div class="info-item">
                 <span class="label">订单号：</span>
-                <span class="value">{{ order.order_number }}</span>
+                <span class="value">{{ order.order_no }}</span>
               </div>
               <div class="info-item">
                 <span class="label">下单时间：</span>
@@ -119,15 +130,15 @@
             <div class="cost-breakdown">
               <div class="cost-item">
                 <span>商品总价：</span>
-                <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
+                <span class="amount">¥{{ parseFloat(order.total_amount || 0).toFixed(2) }}</span>
               </div>
               <div class="cost-item">
                 <span>运费：</span>
-                <span class="amount">¥{{ shippingFee.toFixed(2) }}</span>
+                <span class="amount">¥0.00</span>
               </div>
               <div class="cost-item total">
                 <span>应付总额：</span>
-                <span class="final-amount">¥{{ finalAmount.toFixed(2) }}</span>
+                <span class="final-amount">¥{{ parseFloat(order.total_amount || 0).toFixed(2) }}</span>
               </div>
             </div>
           </div>
@@ -141,6 +152,12 @@
                 @click="payOrder"
               >
                 立即支付
+              </button>
+              <button 
+                class="contact-service-btn"
+                @click="showContactService"
+              >
+                联系客服
               </button>
               <button 
                 v-if="order.status === 'shipped'" 
@@ -173,6 +190,15 @@
     </main>
 
     <ClientFooter />
+    
+    <!-- 联系客服二维码弹窗 -->
+    <div v-if="showContactModal" class="modal-overlay" @click="closeContactModal">
+      <div class="modal-content" @click.stop>
+        <button class="close-btn" @click="closeContactModal">×</button>
+        <img src="/images/wechat-qr-code.jpg" alt="客服微信二维码" class="qr-code-image" 
+             @error="handleImageError" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -184,6 +210,8 @@ import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
 import { getClientPath } from '@/utils/pathUtils'
 import { getImageUrl } from '@/utils/imageUtils'
+import { getOrder } from '@/api/mall_order'
+import { userStore } from '@/store/user'
 
 export default {
   name: 'MallOrderDetail',
@@ -197,6 +225,7 @@ export default {
     
     const order = ref({})
     const loading = ref(true)
+    const showContactModal = ref(false)
     
     // 状态步骤
     const statusSteps = ref([
@@ -211,48 +240,18 @@ export default {
     const loadOrderDetail = async () => {
       try {
         loading.value = true
-        // TODO: 调用API加载订单详情
-        // const response = await getMallOrderDetail(route.params.id)
-        // order.value = response.data
+        if (!userStore.isLoggedIn) {
+          ElMessage.warning('请先登录')
+          router.push(getClientPath('/login'))
+          return
+        }
         
-        // 模拟数据
-        order.value = {
-          id: route.params.id,
-          order_number: 'M202409020001',
-          status: 'pending',
-          created_at: '2024-09-02T10:00:00Z',
-          payment_method: 'wechat',
-          remark: '请尽快发货',
-          total_amount: 3297,
-          shipping_fee: 0,
-          delivery: {
-            name: '张三',
-            phone: '13800138000',
-            address: '广东省深圳市南山区科技园路123号'
-          },
-          items: [
-            {
-              id: 1,
-              product_title: '智能手机',
-              product_image: '',
-              price: 2999,
-              quantity: 1,
-              specifications: [
-                { name: '颜色', value: '黑色' },
-                { name: '存储', value: '256GB' }
-              ]
-            },
-            {
-              id: 2,
-              product_title: '无线耳机',
-              product_image: '',
-              price: 299,
-              quantity: 1,
-              specifications: [
-                { name: '颜色', value: '白色' }
-              ]
-            }
-          ]
+        // 调用API加载订单详情
+        const response = await getOrder(route.params.id, userStore.userInfo.id)
+        if (response.data) {
+          order.value = response.data
+          console.log('订单详情数据:', order.value)
+          console.log('订单项数据:', order.value.items)
         }
         
         // 设置状态时间
@@ -334,12 +333,54 @@ export default {
       return methodMap[method] || '未知'
     }
     
+    // 解析收货人姓名
+    const getRecipientName = (shippingAddress) => {
+      if (!shippingAddress) return ''
+      const parts = shippingAddress.split(' ')
+      // 检查第一部分是否是电话号码（纯数字）
+      if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+        return parts[0] || ''
+      }
+      // 如果没有电话号码，说明是旧格式，返回空
+      return ''
+    }
+    
+    // 解析收货人电话
+    const getRecipientPhone = (shippingAddress) => {
+      if (!shippingAddress) return ''
+      const parts = shippingAddress.split(' ')
+      // 检查第二部分是否是电话号码（纯数字）
+      if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+        return parts[1] || ''
+      }
+      // 如果没有电话号码，说明是旧格式，返回空
+      return ''
+    }
+    
+    // 解析收货地址
+    const getRecipientAddress = (shippingAddress) => {
+      if (!shippingAddress) return ''
+      const parts = shippingAddress.split(' ')
+      // 检查是否有电话号码
+      if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+        // 新格式：姓名 电话 地址
+        return parts.slice(2).join(' ') || ''
+      } else {
+        // 旧格式：直接是地址
+        return shippingAddress
+      }
+    }
+    
     // 支付订单
     const payOrder = () => {
-      router.push({
-        path: getClientPath(`/mall/order/${order.value.id}`),
-        query: { action: 'pay' }
-      })
+      ElMessageBox.alert(
+        '请联系客服完成付款',
+        '支付提示',
+        {
+          confirmButtonText: '知道了',
+          type: 'info'
+        }
+      )
     }
     
     // 确认收货
@@ -393,6 +434,23 @@ export default {
       router.push(getClientPath('/mall/orders'))
     }
     
+    // 显示联系客服弹窗
+    const showContactService = () => {
+      showContactModal.value = true
+    }
+    
+    // 关闭联系客服弹窗
+    const closeContactModal = () => {
+      showContactModal.value = false
+    }
+    
+    // 处理图片加载错误
+    const handleImageError = (event) => {
+      console.warn('微信二维码图片加载失败，请确保图片文件存在')
+      // 可以设置一个默认图片或者显示提示信息
+      event.target.style.display = 'none'
+    }
+    
     onMounted(() => {
       loadOrderDetail()
     })
@@ -400,6 +458,7 @@ export default {
     return {
       order,
       loading,
+      showContactModal,
       statusSteps,
       currentStepIndex,
       totalAmount,
@@ -407,11 +466,17 @@ export default {
       finalAmount,
       formatDate,
       getPaymentMethodText,
+      getRecipientName,
+      getRecipientPhone,
+      getRecipientAddress,
       payOrder,
       confirmDelivery,
       reviewOrder,
       cancelOrder,
       goBack,
+      showContactService,
+      closeContactModal,
+      handleImageError,
       getClientPath,
       getImageUrl
     }
@@ -562,18 +627,40 @@ export default {
   gap: 20px;
 }
 
-.contact-info .name {
+.recipient-name,
+.recipient-phone,
+.recipient-address {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.recipient-name {
   font-weight: 600;
   color: var(--color-text-primary);
+  font-size: 1.1rem;
 }
 
-.contact-info .phone {
+.recipient-phone {
   color: var(--color-text-secondary);
+  font-size: 1rem;
 }
 
-.address {
+.recipient-address {
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.recipient-name .label,
+.recipient-phone .label,
+.recipient-address .label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.no-address {
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 /* 商品信息 */
@@ -730,6 +817,7 @@ export default {
 }
 
 .pay-btn,
+.contact-service-btn,
 .confirm-btn,
 .review-btn,
 .cancel-btn,
@@ -750,6 +838,16 @@ export default {
 
 .pay-btn:hover {
   background: #ff3742;
+  transform: translateY(-2px);
+}
+
+.contact-service-btn {
+  background: #28a745;
+  color: white;
+}
+
+.contact-service-btn:hover {
+  background: #218838;
   transform: translateY(-2px);
 }
 
@@ -827,5 +925,72 @@ export default {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* 联系客服弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 300px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.qr-code-image {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  display: block;
+}
+
+.no-products {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-secondary);
+}
+
+.debug-info {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 10px;
 }
 </style>

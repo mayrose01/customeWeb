@@ -1,8 +1,6 @@
 # 测试环境 Docker Compose 覆盖文件
 # 用于测试环境，包含代码热更新和本地开发配置
 
-version: '3.8'
-
 services:
   # MySQL数据库 - 测试环境配置
   mysql_test:
@@ -21,10 +19,16 @@ services:
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - enterprise_test_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # 后端API服务 - 测试环境配置
   backend:
-    image: enterprise-backend_test:latest
+    build:
+      context: ./enterprise-backend
+      dockerfile: Dockerfile
     container_name: enterprise_backend_test
     restart: unless-stopped
     ports:
@@ -35,7 +39,7 @@ services:
       - SECRET_KEY=test_enterprise_secret_key_2024
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - CORS_ORIGINS=["http://localhost", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:8080", "http://test.catusfoto.top", "http://test.catusfoto.top:3001"]
+      - CORS_ORIGINS=["http://localhost", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:8080"]
       - SMTP_SERVER=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_USERNAME=your-email@gmail.com
@@ -44,34 +48,41 @@ services:
       - MAX_FILE_SIZE=2097152
       - FILE_BASE_URL=http://localhost:8001
       - LOG_LEVEL=DEBUG
+      - LOG_FILE=  # 禁用文件日志，避免权限问题
       - WORKERS=2
     volumes:
       # 测试环境挂载代码目录，支持热更新
       - ./enterprise-backend:/app:ro
       - backend_test_uploads:/app/uploads
       - backend_test_logs:/app/logs
-    user: "1000:1000"  # 使用当前用户权限
     networks:
       - enterprise_test_network
     depends_on:
-      - mysql_test
+      mysql_test:
+        condition: service_healthy
 
   # 前端服务 - 测试环境配置
   frontend:
+    build:
+      context: ./enterprise-frontend
+      dockerfile: Dockerfile
     container_name: enterprise_frontend_test
     ports:
       - "3001:80"  # 测试环境使用不同端口
     environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8001/api}
+      - VITE_API_BASE_URL=http://localhost:8001/api
       - VITE_APP_TITLE=企业官网-测试环境
     volumes:
       # 测试环境挂载代码目录，支持热更新
       - ./enterprise-frontend:/app:ro
     networks:
       - enterprise_test_network
+    depends_on:
+      - backend
 
   # Nginx反向代理 - 测试环境配置
   nginx:
+    image: nginx:alpine
     container_name: enterprise_nginx_test
     ports:
       - "8080:80"  # 测试环境使用不同端口
@@ -80,6 +91,9 @@ services:
       - ./nginx/nginx.test.conf:/etc/nginx/nginx.conf:ro
     networks:
       - enterprise_test_network
+    depends_on:
+      - frontend
+      - backend
 
 # 测试环境专用数据卷
 volumes:

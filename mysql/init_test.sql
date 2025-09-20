@@ -1,4 +1,4 @@
--- MySQL测试环境数据库初始化脚本
+-- MySQL测试数据库初始化脚本
 -- 创建企业官网测试数据库
 
 -- 创建数据库
@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100),
+    email VARCHAR(100) UNIQUE NOT NULL,
     phone VARCHAR(50),
-    role ENUM('admin', 'customer', 'wx_user') DEFAULT 'customer',
+    role ENUM('admin', 'user') DEFAULT 'user',
     wx_openid VARCHAR(100),
     wx_unionid VARCHAR(100),
     app_openid VARCHAR(100),
@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
-    subject VARCHAR(255),
     message TEXT NOT NULL,
     status ENUM('new', 'read', 'replied') DEFAULT 'new',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -81,29 +80,31 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 );
 
 -- 创建产品分类表
-CREATE TABLE IF NOT EXISTS category (
+CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    description TEXT,
     parent_id INT,
-    image VARCHAR(255),
     sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_id) REFERENCES category(id) ON DELETE SET NULL
+    FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
 );
 
 -- 创建产品表
-CREATE TABLE IF NOT EXISTS product (
+CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    model VARCHAR(100),
-    short_desc TEXT,
-    detail TEXT,
-    images TEXT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2),
+    image_url VARCHAR(255),
     category_id INT,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
 );
 
 -- 创建服务表
@@ -119,47 +120,41 @@ CREATE TABLE IF NOT EXISTS services (
 );
 
 -- 创建询价表
-CREATE TABLE IF NOT EXISTS inquiry (
+CREATE TABLE IF NOT EXISTS inquiries (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     product_id INT,
-    product_title VARCHAR(255),
-    product_model VARCHAR(100),
-    product_image VARCHAR(255),
-    customer_name VARCHAR(100) NOT NULL,
-    customer_email VARCHAR(255) NOT NULL,
-    customer_phone VARCHAR(50),
-    inquiry_subject VARCHAR(255),
-    inquiry_content TEXT,
+    service_id INT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    message TEXT,
     status ENUM('new', 'processing', 'completed', 'cancelled') DEFAULT 'new',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE SET NULL
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
 );
 
--- 插入测试管理员用户
+-- 插入默认管理员用户 (密码: admin123)
 INSERT INTO users (username, password_hash, email, role, status) VALUES 
-('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/vJQKq6y', 'admin@test.com', 'admin', 'active')
+('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/vJQKq6y', 'admin@catusfoto.top', 'admin', 'active')
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试用户
-INSERT INTO users (username, password_hash, email, role, status) VALUES 
-('test01', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/vJQKq6y', 'test01@test.com', 'customer', 'active')
-ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
-
--- 插入测试公司信息
+-- 插入默认公司信息
 INSERT INTO company_info (name, logo_url, email, phone, address, working_hours, company_image, main_business, main_pic_url, about_text) VALUES 
-('测试企业', '/company-logo.jpg', 'info@test.com', '+86 123 4567 8900', '测试地址', '周一至周五 9:00-18:00', '/company-image.jpg', '测试主营业务', '/main-business.jpg', '这是一个测试企业网站。')
+('CatusFoto', '/company-logo.jpg', 'info@catusfoto.top', '+86 123 4567 8900', '中国上海市浦东新区', '周一至周五 9:00-18:00', '/company-image.jpg', '专业摄影服务，包括商业摄影、人像摄影、活动摄影等', '/main-business.jpg', 'CatusFoto是一家专业的摄影服务公司，致力于为客户提供高质量的摄影作品。我们拥有经验丰富的摄影师团队和先进的摄影设备，能够满足各种摄影需求。')
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试轮播图
+-- 插入默认轮播图
 INSERT INTO carousel_images (image_url, caption, description, sort_order, is_active) VALUES 
-('/carousel1.jpg', '测试轮播图1', '测试轮播图描述1', 1, TRUE),
-('/carousel2.jpg', '测试轮播图2', '测试轮播图描述2', 2, TRUE)
+('/carousel1.jpg', '专业摄影服务', '为您提供高质量的摄影服务', 1, TRUE),
+('/carousel2.jpg', '商业摄影', '专业的商业摄影解决方案', 2, TRUE),
+('/carousel3.jpg', '人像摄影', '精美的人像摄影作品', 3, TRUE)
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试联系字段
+-- 插入默认联系字段
 INSERT INTO contact_fields (field_name, field_label, field_type, is_required, sort_order) VALUES 
 ('name', '姓名', 'text', TRUE, 1),
 ('email', '邮箱', 'email', TRUE, 2),
@@ -167,23 +162,27 @@ INSERT INTO contact_fields (field_name, field_label, field_type, is_required, so
 ('message', '留言', 'textarea', TRUE, 4)
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试产品分类
-INSERT INTO category (name, sort_order) VALUES 
-('测试分类1', 1),
-('测试分类2', 2)
+-- 插入默认产品分类
+INSERT INTO categories (name, description, sort_order, is_active) VALUES 
+('商业摄影', '专业的商业摄影服务', 1, TRUE),
+('人像摄影', '精美的人像摄影作品', 2, TRUE),
+('活动摄影', '各类活动摄影服务', 3, TRUE)
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试产品
-INSERT INTO product (title, model, short_desc, detail, category_id) VALUES 
-('测试产品1', 'TEST001', '测试产品1描述', '测试产品1详细信息', 1),
-('测试产品2', 'TEST002', '测试产品2描述', '测试产品2详细信息', 1)
+-- 插入默认产品
+INSERT INTO products (name, description, price, image_url, category_id, sort_order, is_active) VALUES 
+('商业产品摄影', '专业的商业产品摄影服务', 500.00, '/product1.jpg', 1, 1, TRUE),
+('企业形象摄影', '企业形象和团队摄影', 800.00, '/product2.jpg', 1, 2, TRUE),
+('个人写真', '个人艺术写真摄影', 300.00, '/product3.jpg', 2, 1, TRUE),
+('婚纱摄影', '浪漫婚纱摄影服务', 2000.00, '/product4.jpg', 2, 2, TRUE)
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- 插入测试服务
-INSERT INTO services (name, description, sort_order, is_active) VALUES 
-('测试服务1', '测试服务1描述', 1, TRUE),
-('测试服务2', '测试服务2描述', 2, TRUE)
+-- 插入默认服务
+INSERT INTO services (name, description, image_url, sort_order, is_active) VALUES 
+('摄影咨询', '专业的摄影咨询服务', '/service1.jpg', 1, TRUE),
+('后期制作', '专业的照片后期处理', '/service2.jpg', 2, TRUE),
+('摄影培训', '摄影技巧培训课程', '/service3.jpg', 3, TRUE)
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
 -- 设置数据库字符集
-ALTER DATABASE enterprise_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; 
+ALTER DATABASE enterprise_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -21,6 +21,22 @@
               <el-table-column prop="id" label="ID" width="80" />
               <el-table-column prop="name" label="分类名称" />
               <el-table-column prop="description" label="描述" />
+              <el-table-column label="分类图片" width="120">
+                <template #default="{ row }">
+                  <el-image
+                    v-if="row.image && getImageUrl(row.image)"
+                    :src="getImageUrl(row.image)"
+                    :preview-src-list="[getImageUrl(row.image)]"
+                    fit="cover"
+                    style="width: 80px; height: 60px; border-radius: 4px;"
+                    @error="handleImageLoadError"
+                  />
+                  <div v-else class="no-image">
+                    <el-icon><Picture /></el-icon>
+                    <span>无图片</span>
+                  </div>
+                </template>
+              </el-table-column>
               <el-table-column prop="sort_order" label="排序" width="100" />
               <el-table-column prop="status" label="状态" width="100">
                 <template #default="{ row }">
@@ -75,7 +91,18 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="title" label="产品名称" />
+              <el-table-column prop="title" label="产品名称" min-width="200">
+                <template #default="{ row }">
+                  <el-button 
+                    type="primary" 
+                    link 
+                    @click="viewProductDetail(row.id)"
+                    style="padding: 0; text-align: left;"
+                  >
+                    {{ row.title }}
+                  </el-button>
+                </template>
+              </el-table-column>
               <el-table-column prop="category_name" label="分类" />
               <el-table-column prop="base_price" label="价格" width="100">
                 <template #default="{ row }">
@@ -90,10 +117,17 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="250">
+              <el-table-column label="操作" width="350">
                 <template #default="{ row }">
                   <el-button size="small" @click="showProductDialog('edit', row)">编辑</el-button>
-  
+                  <el-button size="small" type="success" @click="copyProduct(row.id)">复制</el-button>
+                  <el-button 
+                    size="small" 
+                    :type="row.status === 'active' ? 'warning' : 'success'"
+                    @click="toggleProductStatus(row.id, row.status)"
+                  >
+                    {{ row.status === 'active' ? '下架' : '上架' }}
+                  </el-button>
                   <el-button size="small" type="danger" @click="deleteProduct(row.id)">删除</el-button>
                 </template>
               </el-table-column>
@@ -118,7 +152,41 @@
             
             <el-table :data="filteredOrders" v-loading="ordersLoading" border>
               <el-table-column prop="id" label="订单号" width="120" />
-              <el-table-column prop="user_name" label="用户名" />
+              <el-table-column prop="user_name" label="用户名" width="120" />
+              <el-table-column label="商品图片" width="100">
+                <template #default="{ row }">
+                  <el-image
+                    v-if="getOrderFirstProductImage(row)"
+                    :src="getOrderFirstProductImage(row)"
+                    :preview-src-list="getOrderProductImages(row)"
+                    fit="cover"
+                    style="width: 60px; height: 60px; border-radius: 4px;"
+                    @error="handleImageLoadError"
+                  />
+                  <div v-else class="no-image">
+                    <el-icon><Picture /></el-icon>
+                    <span>无图片</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="商品名称" min-width="200">
+                <template #default="{ row }">
+                  <div v-if="getOrderFirstProductName(row)">
+                    <el-button 
+                      type="primary" 
+                      link 
+                      @click="viewProductDetail(getOrderFirstProductId(row))"
+                      style="padding: 0; text-align: left;"
+                    >
+                      {{ getOrderFirstProductName(row) }}
+                    </el-button>
+                    <div v-if="getOrderProductCount(row) > 1" class="more-products">
+                      等{{ getOrderProductCount(row) }}件商品
+                    </div>
+                  </div>
+                  <span v-else>无商品信息</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="total_amount" label="订单金额" width="120">
                 <template #default="{ row }">
                   ¥{{ parseFloat(row.total_amount || 0).toFixed(2) }}
@@ -164,6 +232,36 @@
         <el-form-item label="描述" prop="description">
           <el-input v-model="categoryForm.description" type="textarea" placeholder="请输入分类描述" />
         </el-form-item>
+        <el-form-item label="分类图片" prop="image">
+          <div style="margin-bottom: 10px; color: #909399; font-size: 12px;">
+            建议上传 16:9 比例的图片，最佳尺寸为 400x225 像素
+          </div>
+          <el-upload
+            ref="categoryUploadRef"
+            :action="uploadUrl"
+            :on-success="handleCategoryImageSuccess"
+            :on-remove="handleCategoryImageRemove"
+            :on-error="handleImageError"
+            :before-upload="beforeImageUpload"
+            :show-file-list="false"
+            :limit="1"
+            accept="image/*"
+            :headers="uploadHeaders"
+            :auto-upload="true"
+            class="category-upload"
+          >
+            <div v-if="categoryForm.image" class="category-image-preview">
+              <img :src="getImageUrl(categoryForm.image)" alt="分类图片预览" />
+              <div class="image-overlay">
+                <el-button type="primary" size="small" icon="Edit">更换图片</el-button>
+              </div>
+            </div>
+            <div v-else class="category-upload-placeholder">
+              <el-icon><Plus /></el-icon>
+              <div>上传分类图片</div>
+            </div>
+          </el-upload>
+        </el-form-item>
         <el-form-item label="排序" prop="sort_order">
           <el-input-number v-model="categoryForm.sort_order" :min="0" />
         </el-form-item>
@@ -207,9 +305,6 @@
         <el-form-item label="基础库存" prop="stock">
           <el-input-number v-model="productForm.stock" :min="0" />
           <span style="margin-left: 10px; color: #909399; font-size: 12px;">基础库存，规格库存会在此基础上调整</span>
-        </el-form-item>
-        <el-form-item label="产品描述" prop="description">
-          <el-input v-model="productForm.description" type="textarea" :rows="4" placeholder="请输入产品描述" />
         </el-form-item>
         
         <!-- 规格管理 -->
@@ -363,6 +458,28 @@
             </div>
           </div>
         </el-form-item>
+        
+        <!-- 产品描述 - 富文本编辑器 -->
+        <el-form-item label="产品描述" prop="description">
+          <div style="border: 1px solid #dcdfe6; border-radius: 4px; min-height: 400px; background: white; width: 100%;">
+            <Toolbar
+              v-if="editorRef"
+              style="border-bottom: 1px solid #ccc"
+              :editor="editorRef"
+              :defaultConfig="toolbarConfig"
+              mode="default"
+            />
+            <Editor
+              v-model="productForm.description"
+              :defaultConfig="editorConfig"
+              style="height: 400px; overflow-y: hidden; width: 100%;"
+              @onCreated="handleEditorCreated"
+              @onChange="handleEditorChange"
+              mode="default"
+            />
+          </div>
+        </el-form-item>
+        
         <el-form-item label="状态" prop="status">
           <el-select v-model="productForm.status">
             <el-option label="上架" value="active" />
@@ -388,6 +505,285 @@
       </div>
     </el-dialog>
 
+    <!-- 订单详情对话框 -->
+    <el-dialog 
+      v-model="orderDetailVisible" 
+      title="订单详情" 
+      width="1000px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="currentOrderDetail" class="order-detail">
+        <!-- 订单基本信息 -->
+        <div class="order-info-section">
+          <h3>订单信息</h3>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="info-item">
+                <label>订单号：</label>
+                <span>{{ currentOrderDetail.order_no }}</span>
+              </div>
+              <div class="info-item">
+                <label>订单状态：</label>
+                <el-tag :type="getOrderStatusType(currentOrderDetail.status)">
+                  {{ getOrderStatusText(currentOrderDetail.status) }}
+                </el-tag>
+              </div>
+              <div class="info-item">
+                <label>支付状态：</label>
+                <el-tag :type="currentOrderDetail.payment_status === 'paid' ? 'success' : 'warning'">
+                  {{ currentOrderDetail.payment_status === 'paid' ? '已支付' : '未支付' }}
+                </el-tag>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>下单时间：</label>
+                <span>{{ formatDateTime(currentOrderDetail.created_at) }}</span>
+              </div>
+              <div class="info-item">
+                <label>支付时间：</label>
+                <span>{{ currentOrderDetail.payment_time ? formatDateTime(currentOrderDetail.payment_time) : '未支付' }}</span>
+              </div>
+              <div class="info-item">
+                <label>订单总金额：</label>
+                <span class="total-amount">¥{{ parseFloat(currentOrderDetail.total_amount || 0).toFixed(2) }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+
+        <!-- 收货信息 -->
+        <div class="order-info-section" v-if="currentOrderDetail.shipping_address">
+          <h3>收货信息</h3>
+          <div class="shipping-info">
+            <div class="info-item" v-if="parsedShippingInfo.name">
+              <label>收货人：</label>
+              <span>{{ parsedShippingInfo.name }}</span>
+            </div>
+            <div class="info-item" v-if="parsedShippingInfo.phone">
+              <label>手机号：</label>
+              <span>{{ parsedShippingInfo.phone }}</span>
+            </div>
+            <div class="info-item" v-if="parsedShippingInfo.address">
+              <label>收货地址：</label>
+              <span>{{ parsedShippingInfo.address }}</span>
+            </div>
+            <div class="info-item" v-if="currentOrderDetail.shipping_company">
+              <label>快递公司：</label>
+              <span>{{ currentOrderDetail.shipping_company }}</span>
+            </div>
+            <div class="info-item" v-if="currentOrderDetail.tracking_number">
+              <label>快递单号：</label>
+              <span>{{ currentOrderDetail.tracking_number }}</span>
+            </div>
+            <div class="info-item" v-if="currentOrderDetail.shipping_time">
+              <label>发货时间：</label>
+              <span>{{ formatDateTime(currentOrderDetail.shipping_time) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 商品信息 -->
+        <div class="order-info-section">
+          <h3>商品信息</h3>
+          <el-table :data="currentOrderDetail.items" border>
+            <el-table-column label="商品图片" width="100">
+              <template #default="{ row }">
+                <el-image
+                  v-if="row.product && row.product.images && row.product.images.length > 0"
+                  :src="getImageUrl(row.product.images[0])"
+                  :preview-src-list="getProductImageList(row.product.images)"
+                  fit="cover"
+                  style="width: 60px; height: 60px; border-radius: 4px;"
+                />
+                <div v-else class="no-image">
+                  <el-icon><Picture /></el-icon>
+                  <span>无图片</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="product_name" label="商品名称" />
+            <el-table-column label="规格信息" width="200">
+              <template #default="{ row }">
+                <div v-if="row.sku_specifications && Object.keys(row.sku_specifications).length > 0">
+                  <el-tag 
+                    v-for="(value, key) in row.sku_specifications" 
+                    :key="key" 
+                    size="small" 
+                    style="margin-right: 5px; margin-bottom: 5px;"
+                  >
+                    {{ key }}: {{ value }}
+                  </el-tag>
+                </div>
+                <span v-else>无规格</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="price" label="单价" width="100">
+              <template #default="{ row }">
+                ¥{{ parseFloat(row.price || 0).toFixed(2) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="quantity" label="数量" width="80" />
+            <el-table-column prop="subtotal" label="小计" width="100">
+              <template #default="{ row }">
+                ¥{{ parseFloat(row.subtotal || 0).toFixed(2) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 订单备注 -->
+        <div class="order-info-section" v-if="currentOrderDetail.remark">
+          <h3>订单备注</h3>
+          <div class="remark-content">
+            {{ currentOrderDetail.remark }}
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="orderDetailVisible = false">关闭</el-button>
+        <el-button 
+          v-if="currentOrderDetail && currentOrderDetail.status === 'paid'" 
+          type="success"
+          @click="updateOrderStatus(currentOrderDetail.id, 'shipped')"
+        >
+          发货
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 商品详情对话框 -->
+    <el-dialog 
+      v-model="productDetailVisible" 
+      title="商品详情" 
+      width="1200px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="currentProductDetail" class="product-detail">
+        <div class="product-detail-content">
+          <!-- 商品图片区域 -->
+          <div class="product-gallery">
+            <div class="main-image">
+              <img 
+                v-if="currentProductDetail.images && currentProductDetail.images.length > 0" 
+                :src="getImageUrl(currentProductDetail.images[currentProductImageIndex])" 
+                :alt="currentProductDetail.title"
+                @error="handleImageLoadError"
+              />
+              <div v-else class="image-placeholder">
+                <span>📦</span>
+                <p>暂无图片</p>
+              </div>
+            </div>
+            <div class="image-thumbnails" v-if="currentProductDetail.images && currentProductDetail.images.length > 1">
+              <div 
+                v-for="(image, index) in currentProductDetail.images" 
+                :key="index"
+                class="thumbnail"
+                :class="{ active: currentProductImageIndex === index }"
+                @click="setCurrentProductImage(index)"
+              >
+                <img 
+                  v-if="image && image.trim()"
+                  :src="getImageUrl(image)" 
+                  :alt="`${currentProductDetail.title} - 图片 ${index + 1}`"
+                  @error="handleImageLoadError"
+                />
+                <div v-else class="thumbnail-placeholder">
+                  <span>📦</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 商品信息区域 -->
+          <div class="product-info">
+            <div class="product-header">
+              <h1 class="product-title">{{ currentProductDetail.title }}</h1>
+              <p class="product-model" v-if="currentProductDetail.model">型号: {{ currentProductDetail.model }}</p>
+            </div>
+
+            <div class="product-price-section">
+              <div class="current-price">¥{{ parseFloat(currentProductDetail.base_price || 0).toFixed(2) }}</div>
+            </div>
+
+            <!-- 商品规格 -->
+            <div class="product-specs" v-if="currentProductDetail.specifications && currentProductDetail.specifications.length > 0">
+              <h3>商品规格</h3>
+              <div class="specs-list">
+                <div 
+                  v-for="spec in currentProductDetail.specifications" 
+                  :key="spec.id"
+                  class="spec-item"
+                  v-if="spec && spec.values && spec.values.length > 0"
+                >
+                  <div class="spec-label">{{ spec.name }}:</div>
+                  <div class="spec-values">
+                    <el-tag 
+                      v-for="value in spec.values" 
+                      :key="value.id || value"
+                      size="small"
+                      style="margin-right: 8px; margin-bottom: 8px;"
+                    >
+                      {{ typeof value === 'string' ? value : value.value }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 商品描述 -->
+            <div class="product-description" v-if="currentProductDetail.description">
+              <h3>商品描述</h3>
+              <div class="description-content" v-html="currentProductDetail.description"></div>
+            </div>
+
+            <!-- 商品基本信息 -->
+            <div class="product-basic-info">
+              <h3>基本信息</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>商品ID：</label>
+                  <span>{{ currentProductDetail.id }}</span>
+                </div>
+                <div class="info-item">
+                  <label>分类：</label>
+                  <span>{{ currentProductDetail.category?.name || '未分类' }}</span>
+                </div>
+                <div class="info-item">
+                  <label>基础价格：</label>
+                  <span>¥{{ parseFloat(currentProductDetail.base_price || 0).toFixed(2) }}</span>
+                </div>
+                <div class="info-item">
+                  <label>库存：</label>
+                  <span>{{ currentProductDetail.stock || 0 }}</span>
+                </div>
+                <div class="info-item">
+                  <label>状态：</label>
+                  <el-tag :type="currentProductDetail.status === 'active' ? 'success' : 'info'">
+                    {{ currentProductDetail.status === 'active' ? '上架' : '下架' }}
+                  </el-tag>
+                </div>
+                <div class="info-item">
+                  <label>创建时间：</label>
+                  <span>{{ formatDateTime(currentProductDetail.created_at) }}</span>
+                </div>
+                <div class="info-item">
+                  <label>更新时间：</label>
+                  <span>{{ formatDateTime(currentProductDetail.updated_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="productDetailVisible = false">关闭</el-button>
+        <el-button type="primary" @click="editProduct(currentProductDetail)">编辑商品</el-button>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
@@ -398,6 +794,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Close, Delete, Picture } from '@element-plus/icons-vue'
 import { getImageUrl } from '@/utils/imageUtils'
 import { getUploadUrl } from '@/utils/config'
+import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import '@wangeditor/editor/dist/css/style.css'
 import { 
   getMallCategories, 
   createMallCategory, 
@@ -406,9 +804,12 @@ import {
 } from '@/api/mall_category'
 import { 
   getMallProducts, 
+  getMallProduct,
   createMallProduct, 
   updateMallProduct, 
   deleteMallProduct,
+  copyMallProduct,
+  updateMallProductStatus,
   getMallProductSpecifications,
   createMallProductSpecification,
   updateMallProductSpecification,
@@ -421,14 +822,19 @@ import {
 import { 
   getMallOrders, 
   updateMallOrderStatus, 
-  updateMallOrderShipping 
+  updateMallOrderShipping,
+  getOrderDetail
 } from '@/api/mall_order'
 
 export default {
   name: 'MallManage',
   components: {
     Plus,
-    Delete
+    Close,
+    Delete,
+    Picture,
+    Editor,
+    Toolbar
   },
   setup() {
     // 当前激活的标签页
@@ -468,11 +874,17 @@ export default {
     const categoryDialogType = ref('add')
     const productDialogVisible = ref(false)
     const productDialogType = ref('add')
+    const orderDetailVisible = ref(false)
+    const currentOrderDetail = ref(null)
+    const productDetailVisible = ref(false)
+    const currentProductDetail = ref(null)
+    const currentProductImageIndex = ref(0)
     
     // 表单数据
     const categoryForm = reactive({
       name: '',
       description: '',
+      image: '',
       sort_order: 0,
       status: 'active'
     })
@@ -497,10 +909,79 @@ export default {
     const imagePreviewVisible = ref(false)
     const previewImageUrl = ref('')
     
+    // 富文本编辑器相关
+    const editorRef = ref()
+    const mode = 'default'
+    
+    // 工具栏配置（包含图片上传）
+    const toolbarConfig = {
+      excludeKeys: [
+        'uploadVideo',
+        'codeBlock',
+        'fullScreen'
+      ]
+    }
+    
+    const editorConfig = ref({
+      placeholder: '请输入产品描述...',
+      readOnly: false,
+      autoFocus: false,
+      scroll: true,
+      MENU_CONF: {
+        // 配置上传图片
+        uploadImage: {
+          server: uploadUrl.value,
+          fieldName: 'file',
+          headers: uploadHeaders.value,
+          // 处理后端返回的图片URL
+          customInsert(res, insertFn) {
+            const fullUrl = getImageUrl(res.url)
+            insertFn(fullUrl, '', '')
+          },
+          // 允许上传多张图片
+          maxFileSize: 2 * 1024 * 1024, // 2MB
+          maxNumberOfFiles: 10, // 最多10张图片
+          allowedFileTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'],
+          // 允许重复文件上传
+          checkDuplicate: false,
+          onBeforeUpload(file) {
+            return true
+          },
+          onSuccess(file, res) {
+            return res.url
+          },
+          onError(file, err, res) {
+            ElMessage.error('图片上传失败')
+          }
+        },
+        // 配置上传视频
+        uploadVideo: {
+          server: uploadUrl.value,
+          fieldName: 'file',
+          headers: uploadHeaders.value,
+          maxFileSize: 10 * 1024 * 1024, // 10M
+          allowedFileTypes: ['video/*'],
+          onBeforeUpload(file) {
+            return true
+          },
+          onSuccess(file, res) {
+            return res.url
+          },
+          onError(file, err, res) {
+            ElMessage.error('视频上传失败')
+          }
+        }
+      }
+    })
+    
+    // 富文本编辑器是否可用
+    const isEditorAvailable = ref(false)
+    
     // 表单引用
     const categoryFormRef = ref()
     const productFormRef = ref()
     const uploadRef = ref()
+    const categoryUploadRef = ref()
     
     // 表单验证规则
     const categoryRules = {
@@ -527,26 +1008,90 @@ export default {
       return orders.value.filter(o => o.status === orderStatus.value)
     })
     
+    // 解析收货地址信息
+    const parsedShippingInfo = computed(() => {
+      if (!currentOrderDetail.value || !currentOrderDetail.value.shipping_address) {
+        return { name: '', phone: '', address: '' }
+      }
+      
+      const addressStr = currentOrderDetail.value.shipping_address
+      // 收货地址格式：姓名 手机号 省份 城市 区县 详细地址
+      // 使用正则表达式匹配手机号来分割
+      const phoneRegex = /(\d{11})/
+      const match = addressStr.match(phoneRegex)
+      
+      if (match) {
+        const phoneIndex = match.index
+        const name = addressStr.substring(0, phoneIndex).trim()
+        const phone = match[1]
+        const address = addressStr.substring(phoneIndex + 11).trim()
+        
+        return {
+          name: name || '',
+          phone: phone || '',
+          address: address || ''
+        }
+      }
+      
+      // 如果无法解析，返回原始地址
+      return {
+        name: '',
+        phone: '',
+        address: addressStr
+      }
+    })
+    
     // 加载产品规格数据
     const loadProductSpecifications = async (productId) => {
       try {
+        console.log('开始加载产品规格数据，产品ID:', productId)
+        console.log('当前产品列表:', products.value)
+        
         // 首先尝试从产品列表中获取规格数据
         const productFromList = products.value.find(p => p.id === productId)
+        console.log('找到的产品:', productFromList)
+        console.log('产品的规格数据:', productFromList?.specifications)
+        
         if (productFromList && productFromList.specifications && productFromList.specifications.length > 0) {
           console.log('从产品列表获取规格数据:', productFromList.specifications)
           
           // 将规格数据转换为前端需要的格式
           const specs = productFromList.specifications
             .filter(spec => spec && spec.name && typeof spec.name === 'string' && spec.name.trim() !== '')
-            .map(spec => ({
-              id: spec.id || (Date.now() + Math.random() + 10000), // 临时ID从10000开始，避免与数据库ID冲突
-              name: spec.name.trim(),
-              values: Array.isArray(spec.values) ? spec.values.filter(v => v && typeof v === 'string' && v.trim() !== '').map(v => v.trim()) : [],
-              inputVisible: false,
-              inputValue: ''
-            }))
+            .map(spec => {
+              console.log('处理规格:', spec)
+              console.log('规格的values:', spec.values)
+              console.log('规格的values类型:', typeof spec.values, Array.isArray(spec.values))
+              
+              let processedValues = []
+              if (Array.isArray(spec.values)) {
+                processedValues = spec.values
+                  .filter(v => v && (typeof v === 'string' ? v.trim() !== '' : (v.value && v.value.trim() !== '')))
+                  .map(v => {
+                    if (typeof v === 'string') {
+                      return v.trim()
+                    } else if (v && v.value) {
+                      return v.value.trim()
+                    }
+                    return ''
+                  })
+                  .filter(v => v !== '')
+              }
+              
+              const processedSpec = {
+                id: spec.id || (Date.now() + Math.random() + 10000), // 临时ID从10000开始，避免与数据库ID冲突
+                name: spec.name.trim(),
+                values: processedValues,
+                inputVisible: false,
+                inputValue: ''
+              }
+              
+              console.log('处理后的规格:', processedSpec)
+              return processedSpec
+            })
             .filter(spec => spec.values.length > 0) // 只保留有值的规格
           
+          console.log('最终规格数据:', specs)
           productForm.specifications = specs
           
           // 如果有规格组合数据，也加载进来
@@ -565,7 +1110,72 @@ export default {
         }
         
         // 如果产品列表中没有规格数据，则调用API获取
-        console.log('从API获取产品规格数据')
+        console.log('从API获取产品详情数据')
+        try {
+          const productResponse = await getMallProduct(productId)
+          console.log('产品详情API响应:', productResponse)
+          
+          if (productResponse.data && productResponse.data.specifications) {
+            console.log('从产品详情API获取规格数据:', productResponse.data.specifications)
+            
+            // 将规格数据转换为前端需要的格式
+            const specs = productResponse.data.specifications
+              .filter(spec => spec && spec.name && typeof spec.name === 'string' && spec.name.trim() !== '')
+              .map(spec => {
+                console.log('处理规格:', spec)
+                console.log('规格的values:', spec.values)
+                console.log('规格的values类型:', typeof spec.values, Array.isArray(spec.values))
+                
+                let processedValues = []
+                if (Array.isArray(spec.values)) {
+                  processedValues = spec.values
+                    .filter(v => v && (typeof v === 'string' ? v.trim() !== '' : (v.value && v.value.trim() !== '')))
+                    .map(v => {
+                      if (typeof v === 'string') {
+                        return v.trim()
+                      } else if (v && v.value) {
+                        return v.value.trim()
+                      }
+                      return ''
+                    })
+                    .filter(v => v !== '')
+                }
+                
+                const processedSpec = {
+                  id: spec.id || (Date.now() + Math.random() + 10000),
+                  name: spec.name.trim(),
+                  values: processedValues,
+                  inputVisible: false,
+                  inputValue: ''
+                }
+                
+                console.log('处理后的规格:', processedSpec)
+                return processedSpec
+              })
+              .filter(spec => spec.values.length > 0) // 只保留有值的规格
+            
+            console.log('最终规格数据:', specs)
+            productForm.specifications = specs
+            
+            // 如果有规格组合数据，也加载进来
+            if (productResponse.data.specificationCombinations && productResponse.data.specificationCombinations.length > 0) {
+              productForm.specificationCombinations = productResponse.data.specificationCombinations.map(comb => ({
+                ...comb,
+                price_adjustment: comb.price_adjustment || 0,
+                stock_adjustment: comb.stock_adjustment || 0
+              }))
+            } else {
+              // 生成默认的规格组合
+              updateSpecificationCombinations()
+            }
+            
+            return // 如果从产品详情API获取到数据，就不需要继续了
+          }
+        } catch (error) {
+          console.error('获取产品详情失败:', error)
+        }
+        
+        console.log('从规格API获取产品规格数据')
         const response = await getMallProductSpecifications(productId)
         
         // 先尝试从SKU数据中重建规格组
@@ -685,6 +1295,10 @@ export default {
         productForm.specifications = []
         productForm.specificationCombinations = []
       }
+      
+      // 确保规格数据已设置（即使为空）
+      console.log('最终设置的规格数据:', productForm.specifications)
+      console.log('最终设置的规格组合数据:', productForm.specificationCombinations)
     }
 
     // 加载数据
@@ -729,7 +1343,9 @@ export default {
             ...item,
             category_name: item.category?.name || '未分类',
             price: item.base_price, // 兼容旧字段
-            images: item.images || []
+            images: item.images || [],
+            specifications: item.specifications || [],
+            specificationCombinations: item.specificationCombinations || []
           }))
         } else if (Array.isArray(response.data)) {
           // 处理数组响应
@@ -737,7 +1353,9 @@ export default {
             ...item,
             category_name: item.category?.name || '未分类',
             price: item.base_price, // 兼容旧字段
-            images: item.images || []
+            images: item.images || [],
+            specifications: item.specifications || [],
+            specificationCombinations: item.specificationCombinations || []
           }))
         } else {
           products.value = []
@@ -775,7 +1393,7 @@ export default {
           orders.value = response.data.items.map(item => ({
             ...item,
             order_number: item.order_no || item.order_number,
-            customer_name: item.user?.username || item.customer_name || '未知用户',
+            user_name: item.user?.username || item.user?.name || item.customer_name || '未知用户',
             total_amount: item.total_amount || 0
           }))
         } else if (Array.isArray(response.data)) {
@@ -783,7 +1401,7 @@ export default {
           orders.value = response.data.map(item => ({
             ...item,
             order_number: item.order_no || item.order_number,
-            customer_name: item.user?.username || item.customer_name || '未知用户',
+            user_name: item.user?.username || item.user?.name || item.customer_name || '未知用户',
             total_amount: item.total_amount || 0
           }))
         } else {
@@ -814,10 +1432,19 @@ export default {
         Object.assign(categoryForm, {
           name: '',
           description: '',
+          image: '',
           sort_order: 0,
           status: 'active'
         })
       }
+      
+      // 重置上传组件
+      nextTick(() => {
+        if (categoryUploadRef.value) {
+          categoryUploadRef.value.clearFiles()
+        }
+      })
+      
       categoryDialogVisible.value = true
     }
     
@@ -854,102 +1481,135 @@ export default {
       }
     }
     
+    // 重新获取产品数据用于编辑
+    const loadProductForEdit = async (productId) => {
+      try {
+        console.log('重新获取产品数据用于编辑:', productId)
+        const response = await getMallProduct(productId)
+        console.log('重新获取的产品数据:', response)
+        
+        if (response.data) {
+          const editData = { ...response.data }
+          console.log('编辑产品数据:', editData)
+          
+          // 处理图片数据
+          if (editData.images && Array.isArray(editData.images)) {
+            editData.images = editData.images.map((img, index) => {
+              if (typeof img === 'string') {
+                return {
+                  name: `image_${index + 1}.jpg`,
+                  url: img,
+                  uid: Date.now() + index,
+                  status: 'success',
+                  response: { url: img, filename: `image_${index + 1}.jpg` }
+                }
+              }
+              return img
+            })
+          } else {
+            editData.images = []
+          }
+          
+          // 处理描述字段
+          if (editData.description && typeof editData.description === 'string') {
+            if (!editData.description.startsWith('<')) {
+              editData.description = `<p>${editData.description}</p>`
+            }
+          } else {
+            editData.description = '<p></p>'
+          }
+          
+          // 设置表单数据
+          Object.assign(productForm, editData)
+          
+          // 简化规格数据加载
+          if (editData.specifications && Array.isArray(editData.specifications)) {
+            const specs = editData.specifications
+              .filter(spec => spec && spec.name && typeof spec.name === 'string' && spec.name.trim() !== '')
+              .map(spec => {
+                let processedValues = []
+                if (Array.isArray(spec.values)) {
+                  processedValues = spec.values
+                    .filter(v => v && (typeof v === 'string' ? v.trim() !== '' : (v.value && v.value.trim() !== '')))
+                    .map(v => {
+                      if (typeof v === 'string') {
+                        return v.trim()
+                      } else if (v && v.value) {
+                        return v.value.trim()
+                      }
+                      return ''
+                    })
+                    .filter(v => v !== '')
+                }
+                
+                return {
+                  id: spec.id || (Date.now() + Math.random() + 10000),
+                  name: spec.name.trim(),
+                  values: processedValues,
+                  inputVisible: false,
+                  inputValue: ''
+                }
+              })
+              .filter(spec => spec.values.length > 0)
+            
+            productForm.specifications = specs
+            // 延迟更新规格组合，避免立即执行
+            setTimeout(() => {
+              updateSpecificationCombinations()
+            }, 100)
+          } else {
+            productForm.specifications = []
+            productForm.specificationCombinations = []
+          }
+          
+          // 显示对话框
+          productDialogVisible.value = true
+        }
+      } catch (error) {
+        console.error('获取产品数据失败:', error)
+        ElMessage.error('获取产品数据失败')
+      }
+    }
+
     // 产品管理
     const showProductDialog = (type, data = {}) => {
       productDialogType.value = type
       
-      // 重置表单
-      Object.assign(productForm, {
-        title: '',
-        category_id: '',
-        base_price: 0,
-        stock: 0,
-        description: '',
-        images: [],
-        status: 'active',
-        specifications: [], // 新增规格组
-        specificationCombinations: [] // 新增规格组合
-      })
-      
       if (type === 'edit') {
-        // 编辑模式：确保images是数组格式，并转换为el-upload期望的格式
-        const editData = { ...data }
-        console.log('编辑产品数据:', editData)
+        // 编辑模式：重新从API获取最新数据
+        console.log('编辑模式，重新获取最新产品数据:', data.id)
         
-        if (editData.images && Array.isArray(editData.images)) {
-          // 将字符串URL转换为图片对象格式
-          editData.images = editData.images.map((img, index) => {
-            if (typeof img === 'string') {
-              // 如果是字符串URL，转换为图片对象
-              const imageObj = {
-                name: `image_${index + 1}.jpg`,
-                url: img,
-                uid: Date.now() + index,
-                status: 'success',
-                response: { url: img, filename: `image_${index + 1}.jpg` }
-              }
-              console.log('转换后的图片对象:', imageObj)
-              return imageObj
-            }
-            // 如果已经是对象，确保有必要的字段
-            const imageObj = {
-              name: img.name || `image_${index + 1}.jpg`,
-              url: img.url || img.response?.url || '',
-              uid: img.uid || Date.now() + index,
-              status: img.status || 'success',
-              response: img.response || { 
-                url: img.url || img.response?.url || '',
-                filename: img.name || `image_${index + 1}.jpg`
-              }
-            }
-            console.log('处理后的图片对象:', imageObj)
-            return imageObj
-          })
-        } else {
-          editData.images = []
-        }
+        // 先重置表单数据，避免数据污染
+        Object.assign(productForm, {
+          title: '',
+          category_id: '',
+          base_price: 0,
+          stock: 0,
+          description: '<p></p>',
+          images: [],
+          status: 'active',
+          specifications: [],
+          specificationCombinations: []
+        })
         
-        // 处理规格数据
-        if (editData.specifications && Array.isArray(editData.specifications)) {
-          editData.specifications = editData.specifications.map(group => ({
-            ...group,
-            values: group.values || [],
-            inputVisible: false,
-            inputValue: ''
-          }))
-        } else {
-          editData.specifications = []
-        }
-
-        if (editData.specificationCombinations && Array.isArray(editData.specificationCombinations)) {
-          editData.specificationCombinations = editData.specificationCombinations.map(comb => ({
-            ...comb,
-            price_adjustment: comb.price_adjustment || 0,
-            stock_adjustment: comb.stock_adjustment || 0
-          }))
-        } else {
-          editData.specificationCombinations = []
-        }
-        
-        console.log('最终的产品表单数据:', editData)
-        Object.assign(productForm, editData)
-        
-        // 在编辑模式下，加载产品的完整规格数据
-        if (editData.id) {
-          // 延迟加载规格数据，确保产品基本信息先显示
-          setTimeout(() => {
-            loadProductSpecifications(editData.id)
-          }, 100)
-        }
+        loadProductForEdit(data.id)
+        return
+      } else {
+        // 新增模式：重置表单
+        Object.assign(productForm, {
+          title: '',
+          category_id: '',
+          base_price: 0,
+          stock: 0,
+          description: '<p></p>',
+          images: [],
+          status: 'active',
+          specifications: [],
+          specificationCombinations: []
+        })
+        productDialogVisible.value = true
+        return
       }
-      
-      // 调试：检查对话框打开后的图片数据
-      nextTick(() => {
-        console.log('对话框打开后的productForm.images:', productForm.images)
-        console.log('图片预览列表:', getImagePreviewList())
-      })
-      
-      productDialogVisible.value = true
     }
     
     const saveProduct = async () => {
@@ -1185,6 +1845,44 @@ export default {
       }
     }
     
+    // 复制产品
+    const copyProduct = async (id) => {
+      try {
+        await ElMessageBox.confirm('确定要复制这个产品吗？', '提示', {
+          type: 'info'
+        })
+        const response = await copyMallProduct(id)
+        ElMessage.success('复制成功')
+        loadProducts()
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('复制产品失败:', error)
+          ElMessage.error('复制失败')
+        }
+      }
+    }
+    
+    // 切换产品状态
+    const toggleProductStatus = async (id, currentStatus) => {
+      try {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+        const action = newStatus === 'active' ? '上架' : '下架'
+        
+        await ElMessageBox.confirm(`确定要${action}这个产品吗？`, '提示', {
+          type: 'warning'
+        })
+        
+        await updateMallProductStatus(id, newStatus)
+        ElMessage.success(`${action}成功`)
+        loadProducts()
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('更新产品状态失败:', error)
+          ElMessage.error('操作失败')
+        }
+      }
+    }
+    
     const manageSpecifications = (productId) => {
       // 查找产品并显示规格管理对话框
       const product = products.value.find(p => p.id === productId)
@@ -1266,78 +1964,95 @@ export default {
 
     // 更新规格组合
     const updateSpecificationCombinations = () => {
-      // 过滤掉没有值的规格组
-      const validSpecs = productForm.specifications.filter(group => group.name && group.values.length > 0)
-      
-      if (validSpecs.length === 0) {
-        productForm.specificationCombinations = []
-        return
-      }
-
-      // 生成所有可能的组合
-      const combinations = []
-      
-      const generateCombinations = (currentCombination, currentIndex) => {
-        if (currentIndex === validSpecs.length) {
-          if (currentCombination.length > 0) {
-            // 确保每个规格对象都有有效的name和value
-            const validCombination = currentCombination.filter(spec => 
-              spec && spec.name && spec.value && 
-              typeof spec.name === 'string' && 
-              typeof spec.value === 'string' &&
-              spec.name.trim() !== '' && 
-              spec.value.trim() !== ''
-            )
-            
-            if (validCombination.length > 0) {
-              combinations.push({
-                specs: validCombination,
-                price_adjustment: 0, // 默认价格调整
-                stock_adjustment: 0 // 默认库存调整
-              })
-            }
-          }
+      try {
+        // 过滤掉没有值的规格组
+        const validSpecs = productForm.specifications.filter(group => group.name && group.values.length > 0)
+        
+        if (validSpecs.length === 0) {
+          productForm.specificationCombinations = []
           return
         }
 
-        const currentSpec = validSpecs[currentIndex]
-        if (currentSpec.values && Array.isArray(currentSpec.values)) {
-          for (const value of currentSpec.values) {
-            if (value && typeof value === 'string' && value.trim() !== '') {
-              generateCombinations([...currentCombination, { 
-                name: currentSpec.name || '未知规格', 
-                value: value.trim() 
-              }], currentIndex + 1)
+        // 限制规格组合数量，避免性能问题
+        const maxCombinations = 1000
+        let combinationCount = 0
+        
+        // 生成所有可能的组合
+        const combinations = []
+        
+        const generateCombinations = (currentCombination, currentIndex) => {
+          // 防止组合过多导致性能问题
+          if (combinationCount >= maxCombinations) {
+            return
+          }
+          
+          if (currentIndex === validSpecs.length) {
+            if (currentCombination.length > 0) {
+              // 确保每个规格对象都有有效的name和value
+              const validCombination = currentCombination.filter(spec => 
+                spec && spec.name && spec.value && 
+                typeof spec.name === 'string' && 
+                typeof spec.value === 'string' &&
+                spec.name.trim() !== '' && 
+                spec.value.trim() !== ''
+              )
+              
+              if (validCombination.length > 0) {
+                combinations.push({
+                  specs: validCombination,
+                  price_adjustment: 0, // 默认价格调整
+                  stock_adjustment: 0 // 默认库存调整
+                })
+                combinationCount++
+              }
+            }
+            return
+          }
+
+          const currentSpec = validSpecs[currentIndex]
+          if (currentSpec.values && Array.isArray(currentSpec.values)) {
+            for (const value of currentSpec.values) {
+              if (value && typeof value === 'string' && value.trim() !== '' && combinationCount < maxCombinations) {
+                generateCombinations([...currentCombination, { 
+                  name: currentSpec.name || '未知规格', 
+                  value: value.trim() 
+                }], currentIndex + 1)
+              }
             }
           }
         }
-      }
-      
-      generateCombinations([], 0)
-
-      // 保存现有的价格和库存调整值
-      const existingCombinations = productForm.specificationCombinations || []
-      const existingValues = {}
-      
-      existingCombinations.forEach(comb => {
-        const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
-        existingValues[key] = {
-          price_adjustment: comb.price_adjustment || 0,
-          stock_adjustment: comb.stock_adjustment || 0
-        }
-      })
-
-      // 根据规格组合生成最终的规格组合列表，保留现有的价格和库存调整值
-      productForm.specificationCombinations = combinations.map(comb => {
-        const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
-        const existingValue = existingValues[key] || { price_adjustment: 0, stock_adjustment: 0 }
         
-        return {
-          ...comb,
-          price_adjustment: existingValue.price_adjustment,
-          stock_adjustment: existingValue.stock_adjustment
-        }
-      })
+        generateCombinations([], 0)
+
+        // 保存现有的价格和库存调整值
+        const existingCombinations = productForm.specificationCombinations || []
+        const existingValues = {}
+        
+        existingCombinations.forEach(comb => {
+          const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
+          existingValues[key] = {
+            price_adjustment: comb.price_adjustment || 0,
+            stock_adjustment: comb.stock_adjustment || 0
+          }
+        })
+
+        // 根据规格组合生成最终的规格组合列表，保留现有的价格和库存调整值
+        productForm.specificationCombinations = combinations.map(comb => {
+          const key = comb.specs.map(spec => `${spec.name}:${spec.value}`).sort().join('|')
+          const existingValue = existingValues[key] || { price_adjustment: 0, stock_adjustment: 0 }
+          
+          return {
+            ...comb,
+            price_adjustment: existingValue.price_adjustment,
+            stock_adjustment: existingValue.stock_adjustment
+          }
+        })
+        
+        console.log('生成的规格组合数量:', productForm.specificationCombinations.length)
+      } catch (error) {
+        console.error('更新规格组合失败:', error)
+        productForm.specificationCombinations = []
+      }
     }
     
     // 订单管理
@@ -1363,9 +2078,21 @@ export default {
       return statusMap[status] || '未知'
     }
     
-    const viewOrderDetail = (orderId) => {
-      // TODO: 跳转到订单详情页面
-      console.log('查看订单详情:', orderId)
+    const viewOrderDetail = async (orderId) => {
+      try {
+        const response = await getOrderDetail(orderId)
+        console.log('订单详情API响应:', response)
+        
+        if (response.data) {
+          currentOrderDetail.value = response.data
+          orderDetailVisible.value = true
+        } else {
+          ElMessage.error('获取订单详情失败')
+        }
+      } catch (error) {
+        console.error('获取订单详情失败:', error)
+        ElMessage.error('获取订单详情失败')
+      }
     }
     
     const updateOrderStatus = async (orderId, status) => {
@@ -1421,7 +2148,7 @@ export default {
         category_id: '',
         base_price: 0,
         stock: 0,
-        description: '',
+        description: '<p></p>', // 富文本编辑器需要HTML格式
         images: [],
         status: 'active',
         specifications: [],
@@ -1546,38 +2273,57 @@ export default {
       }
     }
     
+    // 分类图片上传成功处理
+    const handleCategoryImageSuccess = (response, file, fileList) => {
+      console.log('分类图片上传成功:', response)
+      
+      if (response && response.url) {
+        categoryForm.image = response.url
+        ElMessage.success('分类图片上传成功')
+        
+        // 清空文件列表，允许重新上传
+        if (categoryUploadRef.value) {
+          categoryUploadRef.value.clearFiles()
+        }
+      } else {
+        console.error('分类图片上传响应格式错误:', response)
+        ElMessage.error('分类图片上传失败：响应格式错误')
+      }
+    }
+    
+    // 分类图片移除处理
+    const handleCategoryImageRemove = () => {
+      categoryForm.image = ''
+      ElMessage.success('分类图片移除成功')
+    }
+    
     // 筛选
     const filterProducts = () => {
       // 产品筛选逻辑已在计算属性中处理
     }
 
-    // 获取完整的图片URL - 简化逻辑
-    const getImageUrl = (url) => {
-      if (!url) return ''
-      if (url.startsWith('http')) return url
-      
-      // 如果是相对路径，添加基础URL
-      if (url.startsWith('/uploads/')) {
-        if (window.location.hostname === 'localhost' && window.location.port === '3000') {
-          return `http://localhost:8000${url}`
-        }
-        return `${window.location.origin}${url}`
-      }
-      
-      // 如果是文件名，拼接uploads路径
-      if (url && !url.startsWith('/') && !url.startsWith('http')) {
-        if (window.location.hostname === 'localhost' && window.location.port === '3000') {
-          return `http://localhost:8000/uploads/${url}`
-        }
-        return `${window.location.origin}/uploads/${url}`
-      }
-      
-      return url
-    }
+    // 注意：getImageUrl函数已从@/utils/imageUtils导入，这里不需要重复定义
 
+    // 富文本编辑器创建处理
+    const handleEditorCreated = (editor) => {
+      editorRef.value = editor
+      isEditorAvailable.value = true
+      
+      // 确保编辑器正确初始化
+      nextTick(() => {
+        if (editorRef.value && productForm.description) {
+          editorRef.value.setHtml(productForm.description)
+        }
+      })
+    }
+    
+    // 富文本编辑器内容变化处理
+    const handleEditorChange = (editor) => {
+      // 内容变化时的处理逻辑
+    }
+    
     // 图片预览处理
     const handlePictureCardPreview = (file) => {
-      console.log('预览图片:', file)
       // 获取图片URL
       let imageUrl = ''
       if (typeof file === 'string') {
@@ -1596,6 +2342,104 @@ export default {
     
     const filterOrders = () => {
       // 订单筛选逻辑已在计算属性中处理
+    }
+    
+    // 格式化日期时间
+    const formatDateTime = (dateTime) => {
+      if (!dateTime) return ''
+      const date = new Date(dateTime)
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    }
+    
+    // 获取订单第一个商品的图片
+    const getOrderFirstProductImage = (order) => {
+      if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
+        return null
+      }
+      const firstItem = order.items[0]
+      if (firstItem.product && firstItem.product.images && firstItem.product.images.length > 0) {
+        return getImageUrl(firstItem.product.images[0])
+      }
+      return null
+    }
+    
+    // 获取订单所有商品的图片
+    const getOrderProductImages = (order) => {
+      if (!order.items || !Array.isArray(order.items)) {
+        return []
+      }
+      const images = []
+      order.items.forEach(item => {
+        if (item.product && item.product.images && Array.isArray(item.product.images)) {
+          item.product.images.forEach(img => {
+            if (img) {
+              images.push(getImageUrl(img))
+            }
+          })
+        }
+      })
+      return images
+    }
+    
+    // 获取订单第一个商品的名称
+    const getOrderFirstProductName = (order) => {
+      if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
+        return null
+      }
+      return order.items[0].product_name || (order.items[0].product && order.items[0].product.title)
+    }
+    
+    // 获取订单第一个商品的ID
+    const getOrderFirstProductId = (order) => {
+      if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
+        return null
+      }
+      return order.items[0].product_id || (order.items[0].product && order.items[0].product.id)
+    }
+    
+    // 获取订单商品数量
+    const getOrderProductCount = (order) => {
+      if (!order.items || !Array.isArray(order.items)) {
+        return 0
+      }
+      return order.items.length
+    }
+    
+    // 查看商品详情
+    const viewProductDetail = async (productId) => {
+      try {
+        const response = await getMallProduct(productId)
+        console.log('商品详情API响应:', response)
+        
+        if (response.data) {
+          currentProductDetail.value = response.data
+          currentProductImageIndex.value = 0
+          productDetailVisible.value = true
+        } else {
+          ElMessage.error('获取商品详情失败')
+        }
+      } catch (error) {
+        console.error('获取商品详情失败:', error)
+        ElMessage.error('获取商品详情失败')
+      }
+    }
+    
+    // 设置当前商品图片
+    const setCurrentProductImage = (index) => {
+      currentProductImageIndex.value = index
+    }
+    
+    // 编辑商品
+    const editProduct = (product) => {
+      productDetailVisible.value = false
+      showProductDialog('edit', product)
     }
     
     onMounted(() => {
@@ -1621,6 +2465,7 @@ export default {
       orderStatus,
       filteredProducts,
       filteredOrders,
+      parsedShippingInfo,
       
       // 对话框
       categoryDialogVisible,
@@ -1629,6 +2474,11 @@ export default {
       productDialogType,
       imagePreviewVisible,
       previewImageUrl,
+      orderDetailVisible,
+      currentOrderDetail,
+      productDetailVisible,
+      currentProductDetail,
+      currentProductImageIndex,
       
       // 表单
       categoryForm,
@@ -1652,6 +2502,8 @@ export default {
       showProductDialog,
       saveProduct,
       deleteProduct,
+      copyProduct,
+      toggleProductStatus,
       cancelProductDialog,
       manageSpecifications,
       addSpecificationGroup,
@@ -1666,12 +2518,23 @@ export default {
       getOrderStatusText,
       viewOrderDetail,
       updateOrderStatus,
+      formatDateTime,
+      getOrderFirstProductImage,
+      getOrderProductImages,
+      getOrderFirstProductName,
+      getOrderFirstProductId,
+      getOrderProductCount,
+      viewProductDetail,
+      setCurrentProductImage,
+      editProduct,
       handleImageSuccess,
       handleImageRemove,
       handleImageError,
       handleImageLoadError,
       handleImageChange,
       removeExistingImage,
+      handleCategoryImageSuccess,
+      handleCategoryImageRemove,
       filterProducts,
       filterOrders,
       getImageUrl,
@@ -1681,7 +2544,15 @@ export default {
       getProductImageList,
       handlePictureCardPreview,
       uploadHeaders,
-      uploadRef
+      uploadRef,
+      categoryUploadRef,
+      editorRef,
+      editorConfig,
+      toolbarConfig,
+      mode,
+      handleEditorCreated,
+      handleEditorChange,
+      isEditorAvailable
     }
   }
 }
@@ -1767,5 +2638,329 @@ export default {
   line-height: 30px;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+/* 富文本编辑器样式覆盖 */
+.w-e-text-container {
+  background-color: white !important;
+}
+
+.w-e-toolbar {
+  background-color: #fafafa !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.w-e-text-placeholder {
+  color: #9ca3af !important;
+}
+
+/* 确保编辑器在对话框内正确显示 */
+.el-dialog .w-e-text-container {
+  z-index: 1 !important;
+}
+
+.el-dialog .w-e-toolbar {
+  z-index: 2 !important;
+}
+
+/* 分类图片上传样式 */
+.category-upload {
+  width: 100%;
+}
+
+.category-upload-placeholder {
+  width: 100%;
+  height: 150px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+  color: #999;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.category-upload-placeholder:hover {
+  border-color: var(--color-primary);
+}
+
+.category-upload-placeholder .el-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.category-image-preview {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.category-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.category-image-preview:hover .image-overlay {
+  opacity: 1;
+}
+
+/* 订单详情样式 */
+.order-detail {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.order-info-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.order-info-section h3 {
+  margin: 0 0 15px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #409eff;
+  padding-bottom: 8px;
+}
+
+.info-item {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #606266;
+  min-width: 100px;
+  margin-right: 10px;
+}
+
+.info-item span {
+  color: #303133;
+}
+
+.total-amount {
+  font-size: 18px;
+  font-weight: bold;
+  color: #e6a23c;
+}
+
+.shipping-info {
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.remark-content {
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+  color: #606266;
+  line-height: 1.6;
+}
+
+/* 商品详情样式 */
+.product-detail {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.product-detail-content {
+  display: flex;
+  gap: 30px;
+}
+
+.product-gallery {
+  flex: 0 0 400px;
+}
+
+.main-image {
+  width: 100%;
+  height: 300px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+}
+
+.main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-placeholder {
+  text-align: center;
+  color: #999;
+}
+
+.image-placeholder span {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.image-thumbnails {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.thumbnail {
+  width: 60px;
+  height: 60px;
+  border: 2px solid #e4e7ed;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.thumbnail:hover {
+  border-color: #409eff;
+}
+
+.thumbnail.active {
+  border-color: #409eff;
+  border-width: 3px;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.product-info {
+  flex: 1;
+}
+
+.product-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.product-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 10px 0;
+}
+
+.product-model {
+  color: #606266;
+  margin: 0;
+  font-size: 14px;
+}
+
+.product-price-section {
+  margin-bottom: 25px;
+}
+
+.current-price {
+  font-size: 28px;
+  font-weight: bold;
+  color: #e6a23c;
+}
+
+.product-specs,
+.product-description,
+.product-basic-info {
+  margin-bottom: 25px;
+  padding: 20px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.product-specs h3,
+.product-description h3,
+.product-basic-info h3 {
+  margin: 0 0 15px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #409eff;
+  padding-bottom: 8px;
+}
+
+.spec-item {
+  margin-bottom: 15px;
+}
+
+.spec-label {
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.spec-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.description-content {
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.more-products {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>

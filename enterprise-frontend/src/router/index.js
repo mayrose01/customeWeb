@@ -31,6 +31,7 @@ import ClientOrders from '../views/client/Orders.vue'
 // 商城相关页面
 import MallHome from '../views/mall/MallHome.vue'
 import MallCategories from '../views/mall/MallCategories.vue'
+import MallCategoryDetail from '../views/mall/MallCategoryDetail.vue'
 import MallProducts from '../views/mall/MallProducts.vue'
 import MallProductDetail from '../views/mall/MallProductDetail.vue'
 import MallCart from '../views/mall/MallCart.vue'
@@ -198,6 +199,11 @@ const router = createRouter({
           path: 'mall/categories',
           name: 'test-mall-categories',
           component: MallCategories
+        },
+        {
+          path: 'mall/categories/:id',
+          name: 'test-mall-category-detail',
+          component: MallCategoryDetail
         },
         {
           path: 'mall/products',
@@ -380,6 +386,11 @@ const router = createRouter({
       path: '/mall/categories',
       name: 'mall-categories',
       component: MallCategories
+    },
+    {
+      path: '/mall/categories/:id',
+      name: 'mall-category-detail',
+      component: MallCategoryDetail
     },
     {
       path: '/mall/products',

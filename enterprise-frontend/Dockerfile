@@ -2,7 +2,7 @@
 # 适用于所有环境：开发、测试、生产
 
 # 构建阶段
-FROM node:18-alpine as build-stage
+FROM node:20-alpine as build-stage
 
 # 设置工作目录
 WORKDIR /app
@@ -15,11 +15,11 @@ ENV NODE_ENV=production \
 # 复制package文件（利用Docker层缓存）
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production --platform=linux --arch=x64
-
 # 复制源代码
 COPY . .
+
+# 清理并重新安装所有依赖（包括devDependencies，因为构建需要vite）
+RUN rm -rf node_modules package-lock.json && npm install
 
 # 构建应用
 RUN npm run build

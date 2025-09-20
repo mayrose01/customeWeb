@@ -39,13 +39,14 @@
                     <i class="icon-user"></i>
                     <span>个人中心</span>
                   </div>
-                  <div class="dropdown-item" @click="goToInquiries">
-                    <i class="icon-inquiry"></i>
-                    <span>询价列表</span>
+                  <div class="dropdown-item" @click="goToCart">
+                    <i class="icon-cart"></i>
+                    <span>购物车</span>
+                    <span v-if="cartItemCount > 0" class="cart-count-badge">{{ cartItemCount }}</span>
                   </div>
-                  <div class="dropdown-item" @click="goToConsultations">
-                    <i class="icon-consultation"></i>
-                    <span>咨询列表</span>
+                  <div class="dropdown-item" @click="goToOrders">
+                    <i class="icon-orders"></i>
+                    <span>订单列表</span>
                   </div>
                   <div class="dropdown-divider"></div>
                   <div class="dropdown-item" @click="handleLogout">
@@ -113,12 +114,6 @@
               <i class="icon-search"></i>
             </button>
           </div>
-          
-          <!-- 购物车图标 -->
-          <div class="cart-icon" @click="goToCart">
-            <i class="icon-cart"></i>
-            <span v-if="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
-          </div>
         </div>
       </div>
     </nav>
@@ -132,6 +127,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCompanyInfo } from '@/api/client'
 import { getCategories, getSubcategories } from '@/api/category'
+import { getCart } from '@/api/mall_cart'
 import { userStore } from '@/store/user'
 import { getClientPath } from '@/utils/pathUtils'
 
@@ -174,17 +170,12 @@ export default {
       isUserDropdownVisible.value = false
     }
 
-    // 跳转到询价列表
-    const goToInquiries = () => {
-      router.push(getClientPath('/inquiries'))
+    // 跳转到订单列表
+    const goToOrders = () => {
+      router.push(getClientPath('/mall/orders'))
       isUserDropdownVisible.value = false
     }
 
-    // 跳转到咨询列表
-    const goToConsultations = () => {
-      router.push(getClientPath('/consultations'))
-      isUserDropdownVisible.value = false
-    }
 
     // 处理登出
     const handleLogout = () => {
@@ -246,6 +237,37 @@ export default {
       }
     }
 
+    // 购物车相关
+    const cartItemCount = ref(0)
+    
+    const goToCart = () => {
+      if (!userStore.isLoggedIn) {
+        router.push({
+          path: getClientPath('/login'),
+          query: { redirect: getClientPath('/mall/cart') }
+        })
+        return
+      }
+      router.push(getClientPath('/mall/cart'))
+    }
+    
+    // 加载购物车商品数量
+    const loadCartCount = async () => {
+      if (!userStore.isLoggedIn) {
+        cartItemCount.value = 0
+        return
+      }
+      
+      try {
+        // 调用购物车API获取商品数量
+        const response = await getCart(userStore.userInfo.id)
+        cartItemCount.value = response.data?.items?.length || 0
+      } catch (err) {
+        console.error('加载购物车数量失败:', err)
+        cartItemCount.value = 0
+      }
+    }
+
     // 点击外部关闭下拉菜单
     const handleClickOutside = (event) => {
       const userDropdown = event.target.closest('.user-dropdown')
@@ -275,6 +297,7 @@ export default {
       checkLoginStatus()
       loadCompanyInfo()
       loadTopCategories()
+      loadCartCount()
       document.addEventListener('click', handleClickOutside)
     })
 
@@ -291,16 +314,18 @@ export default {
         topCategories,
         subcategories,
         activeCategoryId,
+        cartItemCount,
         toggleUserDropdown,
         goToProfile,
-        goToInquiries,
-        goToConsultations,
+        goToOrders,
         handleLogout,
         toggleCategoriesDropdown,
         toggleSubcategories,
         goToSubCategories,
         goToAllProducts,
         handleSearch,
+        goToCart,
+        loadCartCount,
         getClientPath
       }
   }
@@ -701,6 +726,7 @@ export default {
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 14px;
+  position: relative;
 }
 
 .dropdown-item:hover {
@@ -710,6 +736,21 @@ export default {
 .dropdown-item i {
   font-size: 16px;
   color: #666;
+}
+
+.cart-count-badge {
+  position: absolute;
+  right: 8px;
+  background: #ff4757;
+  color: white;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
 }
 
 .dropdown-divider {
@@ -734,6 +775,7 @@ export default {
 .icon-user::before { content: "👤"; }
 .icon-inquiry::before { content: "📋"; }
 .icon-consultation::before { content: "💬"; }
+.icon-orders::before { content: "📋"; }
 .icon-logout::before { content: "🚪"; }
 
 /* 响应式设计 */
@@ -772,4 +814,5 @@ export default {
     right: -50px;
   }
 }
+
 </style> 

@@ -1,58 +1,66 @@
 import axios from './axios';
 
-// 获取商城订单列表
-export function getMallOrders(params) {
-  return axios.get('/mall-order/', { params });
+// 创建订单
+export function createOrder(userId, data) {
+  return axios.post(`/mall-order/?user_id=${userId}`, data);
 }
 
-// 获取商城订单详情
-export function getMallOrder(id) {
-  return axios.get(`/mall-order/${id}`);
+// 获取用户订单列表
+export function getUserOrders(userId, params = {}) {
+  return axios.get(`/mall-order/?user_id=${userId}`, { params });
 }
 
-// 根据订单号获取商城订单
-export function getMallOrderByNo(orderNo) {
-  return axios.get(`/mall-order/no/${orderNo}`);
+// 获取订单详情
+export function getOrder(orderId, userId) {
+  return axios.get(`/mall-order/${orderId}?user_id=${userId}`);
 }
 
-// 更新商城订单
-export function updateMallOrder(id, data) {
-  return axios.put(`/mall-order/${id}`, data);
+// 取消订单
+export function cancelOrder(orderId, userId) {
+  return axios.put(`/mall-order/${orderId}/cancel?user_id=${userId}`);
 }
 
-// 更新商城订单状态
-export function updateMallOrderStatus(id, status) {
-  return axios.put(`/mall-order/${id}/status`, { status });
+// 确认收货
+export function confirmOrder(orderId, userId) {
+  return axios.put(`/mall-order/${orderId}/confirm?user_id=${userId}`);
 }
 
-// 更新商城订单物流信息（发货）
-export function updateMallOrderShipping(id, trackingNumber, shippingCompany) {
-  return axios.put(`/mall-order/${id}/shipping`, {
-    tracking_number: trackingNumber,
-    shipping_company: shippingCompany
-  });
+// 管理员获取所有订单列表
+export function getAllOrders(params = {}) {
+  return axios.get('/mall-order/admin/all', { params });
 }
 
-// 更新商城订单支付状态
-export function updateMallOrderPaymentStatus(id, paymentStatus) {
-  return axios.put(`/mall-order/${id}/payment-status`, {
-    payment_status: paymentStatus
-  });
+// 管理员获取订单详情
+export function getOrderDetail(orderId) {
+  return axios.get(`/mall-order/admin/${orderId}`);
 }
 
-// 删除商城订单
-export function deleteMallOrder(id) {
-  return axios.delete(`/mall-order/${id}`);
+// 兼容性：为MallManage.vue提供getMallOrders函数
+export function getMallOrders(params = {}) {
+  return getAllOrders(params);
 }
 
-// 获取商城订单统计概览
-export function getMallOrderStats() {
-  return axios.get('/mall-order/stats/overview');
+// 管理员更新订单状态
+export function updateOrderStatus(orderId, data) {
+  return axios.put(`/mall-order/admin/${orderId}/status`, data);
 }
 
-// 获取商城订单每日统计
-export function getMallOrderDailyStats(startDate, endDate) {
-  return axios.get('/mall-order/stats/daily', {
-    params: { start_date: startDate, end_date: endDate }
-  });
+// 兼容性：为MallManage.vue提供updateMallOrderStatus函数
+export function updateMallOrderStatus(orderId, status) {
+  return updateOrderStatus(orderId, { status });
+}
+
+// 管理员更新订单支付状态
+export function updatePaymentStatus(orderId, paymentStatus) {
+  return axios.put(`/mall-order/admin/${orderId}/payment-status?payment_status=${paymentStatus}`);
+}
+
+// 管理员更新物流信息
+export function updateShippingInfo(orderId, shippingCompany, trackingNumber) {
+  return axios.put(`/mall-order/admin/${orderId}/shipping?shipping_company=${shippingCompany}&tracking_number=${trackingNumber}`);
+}
+
+// 兼容性：为MallManage.vue提供updateMallOrderShipping函数
+export function updateMallOrderShipping(orderId, trackingNumber, shippingCompany) {
+  return updateShippingInfo(orderId, shippingCompany, trackingNumber);
 }

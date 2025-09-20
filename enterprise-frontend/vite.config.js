@@ -10,7 +10,12 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   // 根据环境确定端口和主机
-  const port = parseInt(env.VITE_APP_PORT) || 80
+  let port = parseInt(env.VITE_APP_PORT) || 80
+  if (mode === 'test') {
+    port = 3001  // 测试环境固定使用3001端口
+  } else if (mode === 'development') {
+    port = 3000  // 开发环境使用3000端口
+  }
   // 总是绑定到0.0.0.0以确保外部访问
   const host = '0.0.0.0'
   
@@ -28,7 +33,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       vue(),
-      vueDevTools(),
+      // 只在开发环境启用devtools
+      ...(mode === 'development' ? [vueDevTools()] : []),
     ],
     resolve: {
       alias: {

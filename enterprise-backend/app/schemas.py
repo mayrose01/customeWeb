@@ -399,9 +399,20 @@ class MallProductOut(MallProductBase):
     created_at: datetime
     updated_at: datetime
     category: Optional[MallCategoryOut] = None
+    specifications: Optional[List['MallProductSpecificationOut']] = []
+    skus: Optional[List['MallProductSKUOut']] = []
     
     class Config:
         from_attributes = True
+
+class MallProductStatusUpdate(BaseModel):
+    status: str
+    
+    @validator('status')
+    def validate_status(cls, v):
+        if v not in ['active', 'inactive']:
+            raise ValueError('状态必须是 active 或 inactive')
+        return v
 
 class MallProductListResponse(BaseModel):
     items: List[MallProductOut]
@@ -444,7 +455,7 @@ class MallProductSpecificationValueUpdate(MallProductSpecificationValueBase):
 
 class MallProductSpecificationValueOut(MallProductSpecificationValueBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -474,7 +485,6 @@ class MallProductSKUOut(MallProductSKUBase):
 
 # 商城订单相关schema
 class MallOrderBase(BaseModel):
-    user_id: int
     total_amount: float
     status: Optional[str] = "pending"
     payment_status: Optional[str] = "unpaid"
@@ -485,13 +495,14 @@ class MallOrderBase(BaseModel):
     remark: Optional[str] = None
 
 class MallOrderCreate(MallOrderBase):
-    pass
+    items: Optional[List['MallOrderItemCreate']] = []
 
 class MallOrderUpdate(MallOrderBase):
     pass
 
 class MallOrderOut(MallOrderBase):
     id: int
+    user_id: int
     order_no: str
     payment_time: Optional[datetime] = None
     shipping_time: Optional[datetime] = None
@@ -514,8 +525,14 @@ class MallOrderItemBase(BaseModel):
     quantity: int
     subtotal: float
 
-class MallOrderItemCreate(MallOrderItemBase):
-    pass
+class MallOrderItemCreate(BaseModel):
+    product_id: int
+    sku_id: Optional[int] = None
+    product_name: str
+    sku_specifications: Optional[dict] = {}
+    price: float
+    quantity: int
+    subtotal: float
 
 class MallOrderItemUpdate(MallOrderItemBase):
     pass
@@ -555,16 +572,15 @@ class MallCartOut(MallCartBase):
 
 # 商城购物车项相关schema
 class MallCartItemBase(BaseModel):
-    cart_id: int
     product_id: int
     sku_id: Optional[int] = None
     quantity: int = 1
 
 class MallCartItemCreate(MallCartItemBase):
-    pass
+    cart_id: Optional[int] = None  # 购物车ID，由后端自动设置
 
-class MallCartItemUpdate(MallCartItemBase):
-    pass
+class MallCartItemUpdate(BaseModel):
+    quantity: int = 1
 
 class MallCartItemOut(MallCartItemBase):
     id: int
@@ -572,6 +588,32 @@ class MallCartItemOut(MallCartItemBase):
     updated_at: datetime
     product: Optional[MallProductOut] = None
     sku: Optional[MallProductSKUOut] = None
+    
+    class Config:
+        from_attributes = True
+
+# 商城收货地址相关schema
+class MallAddressBase(BaseModel):
+    name: str
+    phone: str
+    province: str
+    city: str
+    district: str
+    address: str
+    postal_code: Optional[str] = None
+    is_default: Optional[bool] = False
+
+class MallAddressCreate(MallAddressBase):
+    pass
+
+class MallAddressUpdate(MallAddressBase):
+    pass
+
+class MallAddressOut(MallAddressBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True

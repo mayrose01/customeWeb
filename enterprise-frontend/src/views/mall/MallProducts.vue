@@ -133,6 +133,10 @@ import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
 import { getClientPath } from '@/utils/pathUtils'
 import { getImageUrl } from '@/utils/imageUtils'
+import { getMallProducts, getBestSkuForProduct } from '@/api/mall_product'
+import { getMallCategories } from '@/api/mall_category'
+import { addToCart as addToCartAPI } from '@/api/mall_cart'
+import { userStore } from '@/store/user'
 
 export default {
   name: 'MallProducts',
@@ -157,30 +161,70 @@ export default {
     const loadProducts = async () => {
       try {
         loading.value = true
-        // TODO: 调用API加载产品数据
-        // 模拟数据
-        products.value = [
-          { id: 1, title: '智能手机', price: 2999, original_price: 3299, category_name: '电子产品', images: [], is_new: true, discount: 9 },
-          { id: 2, title: '无线耳机', price: 299, original_price: 399, category_name: '电子产品', images: [], discount: 7.5 },
-          { id: 3, title: '智能手表', price: 899, category_name: '电子产品', images: [] },
-          { id: 4, title: '蓝牙音箱', price: 199, category_name: '电子产品', images: [] },
-          { id: 5, title: '男士休闲鞋', price: 299, category_name: '服装鞋帽', images: [] },
-          { id: 6, title: '女士连衣裙', price: 199, category_name: '服装鞋帽', images: [] },
-          { id: 7, title: '厨房刀具套装', price: 399, category_name: '家居用品', images: [] },
-          { id: 8, title: '护肤精华液', price: 299, category_name: '美妆护肤', images: [] }
-        ]
+        // 调用API加载产品数据，只获取上架的产品
+        const response = await getMallProducts({ status: 'active' })
         
-        // 模拟分类数据
-        categories.value = [
-          { id: 1, name: '电子产品' },
-          { id: 2, name: '服装鞋帽' },
-          { id: 3, name: '家居用品' },
-          { id: 4, name: '美妆护肤' }
-        ]
+        if (response.data && response.data.items) {
+          // 处理分页响应
+          products.value = response.data.items.map(item => ({
+            ...item,
+            title: item.title,
+            price: item.base_price,
+            original_price: item.original_price,
+            category_name: item.category?.name || '未分类',
+            images: item.images || [],
+            is_new: item.is_new || false,
+            discount: item.discount
+          }))
+        } else if (Array.isArray(response.data)) {
+          // 处理数组响应
+          products.value = response.data
+            .filter(item => item.status === 'active') // 只显示上架产品
+            .map(item => ({
+              ...item,
+              title: item.title,
+              price: item.base_price,
+              original_price: item.original_price,
+              category_name: item.category?.name || '未分类',
+              images: item.images || [],
+              is_new: item.is_new || false,
+              discount: item.discount
+            }))
+        } else {
+          products.value = []
+        }
+        
+        // 加载分类数据
+        const categoryResponse = await getMallCategories()
+        if (categoryResponse.data) {
+          categories.value = categoryResponse.data.filter(cat => cat.status === 'active')
+        } else {
+          categories.value = []
+        }
         
         totalPages.value = Math.ceil(products.value.length / 8)
       } catch (error) {
         console.error('加载产品失败:', error)
+        // 如果API失败，使用模拟数据（只包含上架产品）
+        products.value = [
+          { id: 1, title: '智能手机', price: 2999, original_price: 3299, category_name: '电子产品', images: [], is_new: true, discount: 9, status: 'active' },
+          { id: 2, title: '无线耳机', price: 299, original_price: 399, category_name: '电子产品', images: [], discount: 7.5, status: 'active' },
+          { id: 3, title: '智能手表', price: 899, category_name: '电子产品', images: [], status: 'active' },
+          { id: 4, title: '蓝牙音箱', price: 199, category_name: '电子产品', images: [], status: 'active' },
+          { id: 5, title: '男士休闲鞋', price: 299, category_name: '服装鞋帽', images: [], status: 'active' },
+          { id: 6, title: '女士连衣裙', price: 199, category_name: '服装鞋帽', images: [], status: 'active' },
+          { id: 7, title: '厨房刀具套装', price: 399, category_name: '家居用品', images: [], status: 'active' },
+          { id: 8, title: '护肤精华液', price: 299, category_name: '美妆护肤', images: [], status: 'active' }
+        ]
+        
+        categories.value = [
+          { id: 1, name: '电子产品', status: 'active' },
+          { id: 2, name: '服装鞋帽', status: 'active' },
+          { id: 3, name: '家居用品', status: 'active' },
+          { id: 4, name: '美妆护肤', status: 'active' }
+        ]
+        
+        totalPages.value = Math.ceil(products.value.length / 8)
       } finally {
         loading.value = false
       }
@@ -242,24 +286,86 @@ export default {
     // 加入购物车
     const addToCart = async (product) => {
       try {
-        // TODO: 检查用户是否登录
-        // TODO: 调用API添加到购物车
+        console.log('添加到购物车的产品:', product)
+        
+        // 检查产品ID是否存在
+        if (!product || !product.id) {
+          console.error('产品ID不存在:', product)
+          ElMessage.error('产品信息错误，无法添加到购物车')
+          return
+        }
+        
+        // 检查用户是否登录
+        if (!userStore.isLoggedIn || !userStore.userInfo) {
+          ElMessage.warning('请先登录')
+          router.push(getClientPath('/login'))
+          return
+        }
+        
+        const userId = userStore.userInfo.id
+        
+        // 获取产品中价格最高且有库存的SKU
+        const skuResponse = await getBestSkuForProduct(product.id)
+        const sku = skuResponse.data
+        
+        // 添加到购物车
+        const cartData = {
+          product_id: product.id,
+          sku_id: sku.id,
+          quantity: 1
+        }
+        
+        await addToCartAPI(userId, cartData)
         ElMessage.success('已添加到购物车')
       } catch (error) {
-        ElMessage.error('添加失败')
+        console.error('添加到购物车失败:', error)
+        if (error.response && error.response.status === 404) {
+          ElMessage.error('产品暂无可用库存')
+        } else {
+          ElMessage.error('添加失败')
+        }
       }
     }
     
     // 立即购买
-    const buyNow = (product) => {
+    const buyNow = async (product) => {
       try {
-        // TODO: 检查用户是否登录
+        console.log('立即购买的产品:', product)
+        
+        // 检查产品ID是否存在
+        if (!product || !product.id) {
+          console.error('产品ID不存在:', product)
+          ElMessage.error('产品信息错误，无法立即购买')
+          return
+        }
+        
+        // 检查用户是否登录
+        if (!userStore.isLoggedIn || !userStore.userInfo) {
+          ElMessage.warning('请先登录')
+          router.push(getClientPath('/login'))
+          return
+        }
+        
+        // 获取产品中价格最高且有库存的SKU
+        const skuResponse = await getBestSkuForProduct(product.id)
+        const sku = skuResponse.data
+        
+        // 跳转到结算页面，传递SKU信息
         router.push({
           path: getClientPath('/mall/checkout'),
-          query: { product_id: product.id, quantity: 1 }
+          query: { 
+            product_id: product.id, 
+            sku_id: sku.id,
+            quantity: 1 
+          }
         })
       } catch (error) {
-        ElMessage.error('操作失败')
+        console.error('立即购买失败:', error)
+        if (error.response && error.response.status === 404) {
+          ElMessage.error('产品暂无可用库存')
+        } else {
+          ElMessage.error('操作失败')
+        }
       }
     }
     

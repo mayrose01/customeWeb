@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单详情页面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+        }
+        .qr-code-test {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-code-test img {
+            width: 150px;
+            height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>订单详情页面修复测试</h1>
+        
+        <div class="test-section">
+            <h3>✅ 已修复的问题</h3>
+            <ul>
+                <li class="success">订单号字段：从 order_number 改为 order_no</li>
+                <li class="success">商品名称：使用 item.product_name 作为主要显示字段</li>
+                <li class="success">商品规格：使用 item.sku_specifications 显示规格信息</li>
+                <li class="success">商品价格：使用 item.price 显示单价</li>
+                <li class="success">商品小计：使用 item.subtotal 显示小计金额</li>
+                <li class="success">联系客服按钮：已添加到立即支付按钮旁边</li>
+                <li class="success">联系客服弹窗：已添加完整的弹窗样式和功能</li>
+                <li class="success">微信二维码：已创建SVG格式的二维码图片</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 字段映射说明</h3>
+            <table border="1" style="width: 100%; border-collapse: collapse;">
+                <tr style="background-color: #f8f9fa;">
+                    <th style="padding: 10px;">显示内容</th>
+                    <th style="padding: 10px;">数据字段</th>
+                    <th style="padding: 10px;">说明</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">订单号</td>
+                    <td style="padding: 10px;">order.order_no</td>
+                    <td style="padding: 10px;">订单唯一标识</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品标题</td>
+                    <td style="padding: 10px;">item.product_name</td>
+                    <td style="padding: 10px;">商品名称</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品规格</td>
+                    <td style="padding: 10px;">item.sku_specifications</td>
+                    <td style="padding: 10px;">SKU规格信息</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品价格</td>
+                    <td style="padding: 10px;">item.price</td>
+                    <td style="padding: 10px;">商品单价</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品数量</td>
+                    <td style="padding: 10px;">item.quantity</td>
+                    <td style="padding: 10px;">购买数量</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品小计</td>
+                    <td style="padding: 10px;">item.subtotal</td>
+                    <td style="padding: 10px;">价格 × 数量</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">下单时间</td>
+                    <td style="padding: 10px;">order.created_at</td>
+                    <td style="padding: 10px;">订单创建时间</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">订单备注</td>
+                    <td style="padding: 10px;">order.remark</td>
+                    <td style="padding: 10px;">用户备注信息</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">商品总价</td>
+                    <td style="padding: 10px;">order.total_amount</td>
+                    <td style="padding: 10px;">订单总金额</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px;">应付金额</td>
+                    <td style="padding: 10px;">order.total_amount</td>
+                    <td style="padding: 10px;">最终支付金额</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="test-section">
+            <h3>🔗 联系客服功能</h3>
+            <p class="info">联系客服按钮已添加到立即支付按钮旁边，点击后会显示微信二维码弹窗。</p>
+            <div class="qr-code-test">
+                <p>二维码图片预览：</p>
+                <img src="enterprise-frontend/public/images/wechat-qr-code.svg" alt="微信二维码" />
+                <p>扫一扫上面的二维码图案，加我为朋友。</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🚀 下一步操作</h3>
+            <ol>
+                <li>启动前端开发服务器测试订单详情页面</li>
+                <li>访问一个真实的订单详情页面验证所有字段显示正确</li>
+                <li>测试联系客服按钮和弹窗功能</li>
+                <li>如果需要，可以将SVG二维码替换为真实的微信二维码图片</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

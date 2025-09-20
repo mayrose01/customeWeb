@@ -157,6 +157,7 @@
             </div>
           </el-tab-pane>
           
+          
           <el-tab-pane label="修改密码" name="password">
             <el-form 
               :model="passwordForm" 
@@ -208,8 +209,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { changePassword as changePasswordAPI } from '@/api/user'
 import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
@@ -477,6 +478,7 @@ const formatDate = (dateString) => {
   })
 }
 
+
 onMounted(() => {
   loadUserInfo()
   loadInquiries()
@@ -687,6 +689,7 @@ onMounted(() => {
 .back-link:hover {
   color: #333;
 }
+
 
 /* 响应式设计 */
 @media (max-width: 768px) {

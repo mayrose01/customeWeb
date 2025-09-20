@@ -272,4 +272,23 @@ class MallCartItem(Base):
     # 关系
     cart = relationship("MallCart", back_populates="items")
     product = relationship("MallProduct")
-    sku = relationship("MallProductSKU") 
+    sku = relationship("MallProductSKU")
+
+class MallAddress(Base):
+    """商城收货地址表"""
+    __tablename__ = "mall_addresses"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 用户ID
+    name = Column(String(100), nullable=False)  # 收货人姓名
+    phone = Column(String(20), nullable=False)  # 手机号码
+    province = Column(String(50), nullable=False)  # 省份
+    city = Column(String(50), nullable=False)  # 城市
+    district = Column(String(50), nullable=False)  # 区县
+    address = Column(String(500), nullable=False)  # 详细地址
+    postal_code = Column(String(10))  # 邮政编码
+    is_default = Column(Boolean, default=False)  # 是否默认地址
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone(timedelta(hours=8))), onupdate=lambda: datetime.now(timezone(timedelta(hours=8))))
+    
+    # 关系
+    user = relationship("User") 

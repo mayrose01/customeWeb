@@ -4,20 +4,22 @@ from typing import Optional, List
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+    model_config = {"env_ignore_empty": True}
+    
     # 基础配置
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT") or "testing"
+    DEBUG: bool = (os.getenv("DEBUG") or "true").lower() == "true"
     
     # 数据库配置 - 优先使用环境变量
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL") or "sqlite:///./test.db"
     
     # JWT配置 - 生产环境必须设置强密钥
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+    SECRET_KEY: str = os.getenv("SECRET_KEY") or "your-secret-key-here-change-in-production"
+    ALGORITHM: str = os.getenv("ALGORITHM") or "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or "1440")
     
-    # CORS配置 - 从环境变量读取，支持JSON格式
-    CORS_ORIGINS: List[str] = json.loads(os.getenv("CORS_ORIGINS", '["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]'))
+    # CORS配置 - 直接使用默认值
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -38,9 +40,6 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "")  # 空字符串表示不使用文件日志
     
-    class Config:
-        # 不再依赖 .env 文件，所有配置通过环境变量注入
-        env_file_encoding = "utf-8"
 
 # 环境特定的配置
 def get_settings() -> Settings:
@@ -57,6 +56,7 @@ def get_settings() -> Settings:
         return Settings()
 
 class DevelopmentSettings(Settings):
+    model_config = {"env_ignore_empty": True}
     """开发环境配置"""
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
@@ -68,16 +68,14 @@ class DevelopmentSettings(Settings):
     )
     
     # 本地开发环境CORS
-    CORS_ORIGINS: List[str] = json.loads(os.getenv(
-        "CORS_ORIGINS",
-        '["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://dev.yourdomain.com:8080"]'
-    ))
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://dev.yourdomain.com:8080"]
     
     # 本地开发环境日志
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "DEBUG")
     LOG_FILE: str = os.getenv("LOG_FILE", "logs/app_dev.log")
 
 class TestingSettings(Settings):
+    model_config = {"env_ignore_empty": True}
     """测试环境配置"""
     ENVIRONMENT: str = "testing"
     DEBUG: bool = False
@@ -89,10 +87,7 @@ class TestingSettings(Settings):
     )
     
     # 测试环境CORS
-    CORS_ORIGINS: List[str] = json.loads(os.getenv(
-        "CORS_ORIGINS",
-        '["http://localhost:3001", "http://test.yourdomain.com:8080"]'
-    ))
+    CORS_ORIGINS: List[str] = ["http://localhost:3001", "http://test.yourdomain.com:8080"]
     
     # 测试环境日志
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -102,6 +97,7 @@ class TestingSettings(Settings):
     FILE_BASE_URL: str = os.getenv("FILE_BASE_URL", "http://localhost:8001")
 
 class ProductionSettings(Settings):
+    model_config = {"env_ignore_empty": True}
     """生产环境配置"""
     ENVIRONMENT: str = "production"
     DEBUG: bool = False
@@ -113,10 +109,7 @@ class ProductionSettings(Settings):
     )
     
     # 生产环境CORS
-    CORS_ORIGINS: List[str] = json.loads(os.getenv(
-        "CORS_ORIGINS",
-        '["https://yourdomain.com", "https://www.yourdomain.com"]'
-    ))
+    CORS_ORIGINS: List[str] = ["https://yourdomain.com", "https://www.yourdomain.com"]
     
     # 生产环境日志
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

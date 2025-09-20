@@ -918,7 +918,9 @@ def get_mall_products_with_count(
 ) -> tuple[List[models.MallProduct], int]:
     """获取商城产品列表（带总数）"""
     query = db.query(models.MallProduct).options(
-        joinedload(models.MallProduct.category)
+        joinedload(models.MallProduct.category),
+        joinedload(models.MallProduct.specifications),
+        joinedload(models.MallProduct.skus)
     )
     
     if title:
@@ -933,15 +935,91 @@ def get_mall_products_with_count(
     total = query.count()
     products = query.order_by(models.MallProduct.sort_order, models.MallProduct.created_at.desc()).offset(skip).limit(limit).all()
     
+    # 确保规格值被正确加载
+    for product in products:
+        for spec in product.specifications:
+            # 强制加载规格值
+            db.refresh(spec)
+            # 重新查询规格值
+            spec_values = db.query(models.MallProductSpecificationValue).filter(
+                models.MallProductSpecificationValue.specification_id == spec.id
+            ).order_by(models.MallProductSpecificationValue.sort_order).all()
+            spec.values = spec_values
+            print(f"产品 {product.title} 规格 {spec.name} (ID: {spec.id}) 的规格值: {[v.value for v in spec_values]}")
+            
+            # 如果规格值为空，尝试从SKU中提取规格值
+            if not spec_values and product.skus:
+                print(f"产品 {product.title} 规格 {spec.name} 的values为空，尝试从SKU中提取")
+                sku_values = set()
+                for sku in product.skus:
+                    if sku.specifications and spec.name in sku.specifications:
+                        sku_values.add(sku.specifications[spec.name])
+                
+                if sku_values:
+                    print(f"从SKU中提取到规格值: {list(sku_values)}")
+                    # 创建规格值对象
+                    spec.values = []
+                    import random
+                    for i, value in enumerate(sorted(sku_values)):
+                        from datetime import datetime, timezone, timedelta
+                        # 使用随机ID避免主键冲突
+                        random_id = 100000 + random.randint(1, 99999)
+                        spec_value = models.MallProductSpecificationValue(
+                            id=random_id,
+                            specification_id=spec.id,
+                            value=value,
+                            sort_order=i,
+                            created_at=datetime.now(timezone(timedelta(hours=8)))
+                        )
+                        spec.values.append(spec_value)
+    
     return products, total
 
 def get_mall_product(db: Session, product_id: int) -> Optional[models.MallProduct]:
     """根据ID获取商城产品"""
-    return db.query(models.MallProduct).options(
+    product = db.query(models.MallProduct).options(
         joinedload(models.MallProduct.category),
-        joinedload(models.MallProduct.specifications).joinedload(models.MallProductSpecification.values),
+        joinedload(models.MallProduct.specifications),
         joinedload(models.MallProduct.skus)
     ).filter(models.MallProduct.id == product_id).first()
+    
+    if product:
+        # 确保规格值被正确加载
+        for spec in product.specifications:
+            # 重新查询规格值
+            spec_values = db.query(models.MallProductSpecificationValue).filter(
+                models.MallProductSpecificationValue.specification_id == spec.id
+            ).order_by(models.MallProductSpecificationValue.sort_order).all()
+            spec.values = spec_values
+            print(f"规格 {spec.name} (ID: {spec.id}) 的规格值: {[v.value for v in spec_values]}")
+            
+            # 如果规格值为空，尝试从SKU中提取规格值
+            if not spec_values and product.skus:
+                print(f"规格 {spec.name} 的values为空，尝试从SKU中提取")
+                sku_values = set()
+                for sku in product.skus:
+                    if sku.specifications and spec.name in sku.specifications:
+                        sku_values.add(sku.specifications[spec.name])
+                
+                if sku_values:
+                    print(f"从SKU中提取到规格值: {list(sku_values)}")
+                    # 创建规格值对象
+                    spec.values = []
+                    import random
+                    for i, value in enumerate(sorted(sku_values)):
+                        from datetime import datetime, timezone, timedelta
+                        # 使用随机ID避免主键冲突
+                        random_id = 100000 + random.randint(1, 99999)
+                        spec_value = models.MallProductSpecificationValue(
+                            id=random_id,
+                            specification_id=spec.id,
+                            value=value,
+                            sort_order=i,
+                            created_at=datetime.now(timezone(timedelta(hours=8)))
+                        )
+                        spec.values.append(spec_value)
+    
+    return product
 
 def create_mall_product(db: Session, data: schemas.MallProductCreate) -> models.MallProduct:
     """创建商城产品"""
@@ -980,12 +1058,12 @@ def delete_mall_product(db: Session, product_id: int) -> bool:
     return True
 
 def copy_mall_product(db: Session, product_id: int) -> models.MallProduct:
-    """复制商城产品"""
+    """复制商城产品（包括规格和SKU）"""
     original = get_mall_product(db, product_id)
     if not original:
         raise ValueError("原产品不存在")
     
-    # 创建副本
+    # 创建产品副本
     copy_data = {
         'title': f"{original.title} (副本)",
         'description': original.description,
@@ -1002,7 +1080,54 @@ def copy_mall_product(db: Session, product_id: int) -> models.MallProduct:
     db.commit()
     db.refresh(new_product)
     
-    logger.info(f"复制商城产品: 原ID={product_id}, 新ID={new_product.id}")
+    # 复制产品规格
+    original_specs = get_mall_product_specifications(db, product_id)
+    spec_mapping = {}  # 用于映射原规格ID到新规格ID
+    
+    for original_spec in original_specs:
+        # 创建新规格
+        new_spec = models.MallProductSpecification(
+            product_id=new_product.id,
+            name=original_spec.name,
+            sort_order=original_spec.sort_order
+        )
+        db.add(new_spec)
+        db.commit()
+        db.refresh(new_spec)
+        
+        # 保存规格ID映射
+        spec_mapping[original_spec.id] = new_spec.id
+        
+        # 复制规格值
+        for original_value in original_spec.values:
+            new_value = models.MallProductSpecificationValue(
+                specification_id=new_spec.id,
+                value=original_value.value,
+                sort_order=original_value.sort_order
+            )
+            db.add(new_value)
+    
+    db.commit()
+    
+    # 复制产品SKU
+    original_skus = get_mall_product_skus(db, product_id)
+    for original_sku in original_skus:
+        # 更新SKU编码，避免重复
+        new_sku_code = f"{original_sku.sku_code}_copy_{new_product.id}"
+        
+        new_sku = models.MallProductSKU(
+            product_id=new_product.id,
+            sku_code=new_sku_code,
+            price=original_sku.price,
+            stock=original_sku.stock,
+            weight=original_sku.weight,
+            specifications=original_sku.specifications
+        )
+        db.add(new_sku)
+    
+    db.commit()
+    
+    logger.info(f"复制商城产品: 原ID={product_id}, 新ID={new_product.id}, 规格数={len(original_specs)}, SKU数={len(original_skus)}")
     return new_product
 
 def update_mall_product_status(db: Session, product_id: int, status: str) -> Optional[models.MallProduct]:
@@ -1118,6 +1243,14 @@ def create_mall_product_sku(db: Session, data: schemas.MallProductSKUCreate) -> 
 def get_mall_product_skus(db: Session, product_id: int) -> List[models.MallProductSKU]:
     """获取商城产品的SKU列表"""
     return db.query(models.MallProductSKU).filter(models.MallProductSKU.product_id == product_id).all()
+
+def get_highest_priced_sku_with_stock(db: Session, product_id: int) -> Optional[models.MallProductSKU]:
+    """获取产品中价格最高且有库存的SKU"""
+    return db.query(models.MallProductSKU)\
+        .filter(models.MallProductSKU.product_id == product_id)\
+        .filter(models.MallProductSKU.stock > 0)\
+        .order_by(models.MallProductSKU.price.desc())\
+        .first()
 
 def update_mall_product_sku(db: Session, sku_id: int, data: schemas.MallProductSKUUpdate) -> Optional[models.MallProductSKU]:
     """更新商城产品SKU"""
@@ -1291,4 +1424,338 @@ def get_mall_order_daily_stats(db: Session, start_date: str, end_date: str) -> L
             'daily_revenue': float(stat.daily_revenue or 0.0)
         }
         for stat in daily_stats
-    ] 
+    ]
+
+# ==================== 购物车相关CRUD ====================
+
+def get_user_cart(db: Session, user_id: int) -> Optional[models.MallCart]:
+    """获取用户购物车"""
+    return db.query(models.MallCart).options(
+        joinedload(models.MallCart.items).joinedload(models.MallCartItem.product),
+        joinedload(models.MallCart.items).joinedload(models.MallCartItem.sku)
+    ).filter(models.MallCart.user_id == user_id).first()
+
+def create_user_cart(db: Session, user_id: int) -> models.MallCart:
+    """创建用户购物车"""
+    cart = models.MallCart(user_id=user_id)
+    db.add(cart)
+    db.commit()
+    db.refresh(cart)
+    logger.info(f"创建用户购物车: 用户ID={user_id}")
+    return cart
+
+def add_to_cart(db: Session, data: schemas.MallCartItemCreate) -> models.MallCartItem:
+    """添加商品到购物车"""
+    # 检查是否已存在相同商品
+    existing_item = db.query(models.MallCartItem).filter(
+        models.MallCartItem.cart_id == data.cart_id,
+        models.MallCartItem.product_id == data.product_id,
+        models.MallCartItem.sku_id == data.sku_id
+    ).first()
+    
+    if existing_item:
+        # 如果已存在，增加数量
+        existing_item.quantity += data.quantity
+        existing_item.updated_at = datetime.now()
+        db.commit()
+        db.refresh(existing_item)
+        logger.info(f"更新购物车商品数量: 商品ID={data.product_id}, 数量={existing_item.quantity}")
+        return existing_item
+    else:
+        # 如果不存在，创建新项
+        cart_item = models.MallCartItem(**data.dict())
+        db.add(cart_item)
+        db.commit()
+        db.refresh(cart_item)
+        logger.info(f"添加商品到购物车: 商品ID={data.product_id}, 数量={data.quantity}")
+        return cart_item
+
+def update_cart_item(db: Session, item_id: int, data: schemas.MallCartItemUpdate) -> Optional[models.MallCartItem]:
+    """更新购物车商品数量"""
+    cart_item = db.query(models.MallCartItem).filter(models.MallCartItem.id == item_id).first()
+    if not cart_item:
+        return None
+    
+    update_data = data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(cart_item, field, value)
+    
+    cart_item.updated_at = datetime.now()
+    db.commit()
+    db.refresh(cart_item)
+    logger.info(f"更新购物车商品: ID={item_id}, 数量={cart_item.quantity}")
+    return cart_item
+
+def remove_from_cart(db: Session, item_id: int) -> bool:
+    """从购物车删除商品"""
+    cart_item = db.query(models.MallCartItem).filter(models.MallCartItem.id == item_id).first()
+    if not cart_item:
+        return False
+    
+    db.delete(cart_item)
+    db.commit()
+    logger.info(f"从购物车删除商品: ID={item_id}")
+    return True
+
+def clear_user_cart(db: Session, user_id: int) -> bool:
+    """清空用户购物车"""
+    cart = get_user_cart(db, user_id)
+    if not cart:
+        return False
+    
+    # 删除所有购物车项
+    db.query(models.MallCartItem).filter(models.MallCartItem.cart_id == cart.id).delete()
+    db.commit()
+    logger.info(f"清空用户购物车: 用户ID={user_id}")
+    return True
+
+# ==================== 订单相关CRUD ====================
+
+def create_mall_order(db: Session, user_id: int, data: schemas.MallOrderCreate) -> models.MallOrder:
+    """创建商城订单"""
+    # 生成订单号
+    import time
+    import random
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    milliseconds = int(time.time() * 1000) % 1000  # 获取毫秒
+    random_num = random.randint(100, 999)  # 3位随机数
+    order_no = f"ORD{user_id:03d}{timestamp}{milliseconds:03d}{random_num:03d}"
+    
+    # 创建订单
+    order_data = data.dict()
+    items_data = order_data.pop('items', [])  # 提取订单项数据
+    order_data['user_id'] = user_id
+    order_data['order_no'] = order_no
+    order = models.MallOrder(**order_data)
+    db.add(order)
+    db.flush()  # 获取订单ID
+    
+    # 创建订单项
+    for item_data in items_data:
+        order_item = models.MallOrderItem(
+            order_id=order.id,
+            product_id=item_data['product_id'],
+            sku_id=item_data.get('sku_id'),
+            product_name=item_data['product_name'],
+            sku_specifications=item_data.get('sku_specifications', {}),
+            price=item_data['price'],
+            quantity=item_data['quantity'],
+            subtotal=item_data['subtotal']
+        )
+        db.add(order_item)
+    
+    db.commit()
+    db.refresh(order)
+    logger.info(f"创建商城订单: 订单号={order_no}, 用户ID={user_id}, 订单项数量={len(items_data)}")
+    return order
+
+def get_user_orders_with_count(
+    db: Session, 
+    user_id: int, 
+    skip: int = 0, 
+    limit: int = 100,
+    status: Optional[str] = None
+) -> tuple[List[models.MallOrder], int]:
+    """获取用户订单列表（带分页和统计）"""
+    query = db.query(models.MallOrder).options(
+        joinedload(models.MallOrder.user),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.product),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.sku)
+    ).filter(models.MallOrder.user_id == user_id)
+    
+    if status:
+        query = query.filter(models.MallOrder.status == status)
+    
+    total = query.count()
+    orders = query.order_by(models.MallOrder.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return orders, total
+
+def get_user_order(db: Session, order_id: int, user_id: int) -> Optional[models.MallOrder]:
+    """获取用户订单详情"""
+    return db.query(models.MallOrder).options(
+        joinedload(models.MallOrder.user),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.product),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.sku)
+    ).filter(
+        models.MallOrder.id == order_id,
+        models.MallOrder.user_id == user_id
+    ).first()
+
+def get_all_orders_with_count(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100,
+    status: Optional[str] = None,
+    payment_status: Optional[str] = None
+) -> tuple[List[models.MallOrder], int]:
+    """获取所有订单列表（管理员用）"""
+    query = db.query(models.MallOrder).options(
+        joinedload(models.MallOrder.user),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.product),
+        joinedload(models.MallOrder.items).joinedload(models.MallOrderItem.sku)
+    )
+    
+    if status:
+        query = query.filter(models.MallOrder.status == status)
+    if payment_status:
+        query = query.filter(models.MallOrder.payment_status == payment_status)
+    
+    total = query.count()
+    orders = query.order_by(models.MallOrder.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return orders, total
+
+def cancel_mall_order(db: Session, order_id: int, user_id: int) -> bool:
+    """取消订单"""
+    order = get_user_order(db, order_id, user_id)
+    if not order:
+        return False
+    
+    if order.status not in ['pending', 'paid']:
+        raise ValueError("只有待付款或已付款的订单才能取消")
+    
+    order.status = 'cancelled'
+    order.updated_at = datetime.now()
+    db.commit()
+    logger.info(f"取消订单: ID={order_id}, 用户ID={user_id}")
+    return True
+
+def confirm_mall_order(db: Session, order_id: int, user_id: int) -> bool:
+    """确认收货"""
+    order = get_user_order(db, order_id, user_id)
+    if not order:
+        return False
+    
+    if order.status != 'shipped':
+        raise ValueError("只有已发货的订单才能确认收货")
+    
+    order.status = 'completed'
+    order.updated_at = datetime.now()
+    db.commit()
+    logger.info(f"确认收货: ID={order_id}, 用户ID={user_id}")
+    return True
+
+def update_mall_order_payment_status(db: Session, order_id: int, payment_status: str) -> bool:
+    """更新订单支付状态"""
+    order = get_mall_order(db, order_id)
+    if not order:
+        return False
+    
+    if payment_status not in ['unpaid', 'paid', 'refunded']:
+        raise ValueError("无效的支付状态")
+    
+    order.payment_status = payment_status
+    if payment_status == 'paid':
+        order.payment_time = datetime.now()
+        order.status = 'paid'
+    
+    order.updated_at = datetime.now()
+    db.commit()
+    logger.info(f"更新订单支付状态: ID={order_id}, 状态={payment_status}")
+    return True
+
+def update_mall_order_shipping(db: Session, order_id: int, shipping_company: str, tracking_number: str) -> bool:
+    """更新订单物流信息"""
+    order = get_mall_order(db, order_id)
+    if not order:
+        return False
+    
+    order.shipping_company = shipping_company
+    order.tracking_number = tracking_number
+    order.shipping_time = datetime.now()
+    order.status = 'shipped'
+    order.updated_at = datetime.now()
+    
+    db.commit()
+    logger.info(f"更新订单物流信息: ID={order_id}, 快递公司={shipping_company}, 单号={tracking_number}")
+    return True
+
+# ==================== 收货地址相关CRUD ====================
+
+def get_user_addresses(db: Session, user_id: int) -> List[models.MallAddress]:
+    """获取用户收货地址列表"""
+    return db.query(models.MallAddress).filter(
+        models.MallAddress.user_id == user_id
+    ).order_by(models.MallAddress.is_default.desc(), models.MallAddress.created_at.desc()).all()
+
+def create_mall_address(db: Session, user_id: int, data: schemas.MallAddressCreate) -> models.MallAddress:
+    """创建收货地址"""
+    # 如果设置为默认地址，先取消其他默认地址
+    if data.is_default:
+        db.query(models.MallAddress).filter(
+            models.MallAddress.user_id == user_id,
+            models.MallAddress.is_default == True
+        ).update({"is_default": False})
+    
+    address_data = data.dict()
+    address_data['user_id'] = user_id
+    address = models.MallAddress(**address_data)
+    db.add(address)
+    db.commit()
+    db.refresh(address)
+    logger.info(f"创建收货地址: 用户ID={user_id}, 地址ID={address.id}")
+    return address
+
+def update_mall_address(db: Session, address_id: int, user_id: int, data: schemas.MallAddressUpdate) -> Optional[models.MallAddress]:
+    """更新收货地址"""
+    address = db.query(models.MallAddress).filter(
+        models.MallAddress.id == address_id,
+        models.MallAddress.user_id == user_id
+    ).first()
+    if not address:
+        return None
+    
+    # 如果设置为默认地址，先取消其他默认地址
+    if data.is_default:
+        db.query(models.MallAddress).filter(
+            models.MallAddress.user_id == user_id,
+            models.MallAddress.is_default == True,
+            models.MallAddress.id != address_id
+        ).update({"is_default": False})
+    
+    update_data = data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(address, field, value)
+    
+    address.updated_at = datetime.now()
+    db.commit()
+    db.refresh(address)
+    logger.info(f"更新收货地址: ID={address_id}, 用户ID={user_id}")
+    return address
+
+def delete_mall_address(db: Session, address_id: int, user_id: int) -> bool:
+    """删除收货地址"""
+    address = db.query(models.MallAddress).filter(
+        models.MallAddress.id == address_id,
+        models.MallAddress.user_id == user_id
+    ).first()
+    if not address:
+        return False
+    
+    db.delete(address)
+    db.commit()
+    logger.info(f"删除收货地址: ID={address_id}, 用户ID={user_id}")
+    return True
+
+def set_default_mall_address(db: Session, address_id: int, user_id: int) -> bool:
+    """设置默认收货地址"""
+    address = db.query(models.MallAddress).filter(
+        models.MallAddress.id == address_id,
+        models.MallAddress.user_id == user_id
+    ).first()
+    if not address:
+        return False
+    
+    # 先取消其他默认地址
+    db.query(models.MallAddress).filter(
+        models.MallAddress.user_id == user_id,
+        models.MallAddress.is_default == True
+    ).update({"is_default": False})
+    
+    # 设置当前地址为默认
+    address.is_default = True
+    address.updated_at = datetime.now()
+    db.commit()
+    logger.info(f"设置默认收货地址: ID={address_id}, 用户ID={user_id}")
+    return True 

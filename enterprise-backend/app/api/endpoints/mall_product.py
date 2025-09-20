@@ -85,12 +85,20 @@ def copy_mall_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/{product_id}/status")
-def update_mall_product_status(product_id: int, status: str, db: Session = Depends(get_db)):
+def update_mall_product_status(product_id: int, data: schemas.MallProductStatusUpdate, db: Session = Depends(get_db)):
     """更新商城产品状态（上架/下架）"""
     try:
-        product = crud.update_mall_product_status(db, product_id, status)
+        product = crud.update_mall_product_status(db, product_id, data.status)
         if not product:
             raise HTTPException(status_code=404, detail="商城产品不存在")
         return {"ok": True, "message": "产品状态更新成功"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/{product_id}/best-sku", response_model=schemas.MallProductSKUOut)
+def get_best_sku_for_product(product_id: int, db: Session = Depends(get_db)):
+    """获取产品中价格最高且有库存的SKU（用于快速加购）"""
+    sku = crud.get_highest_priced_sku_with_stock(db, product_id)
+    if not sku:
+        raise HTTPException(status_code=404, detail="产品暂无可用库存")
+    return schemas.MallProductSKUOut.model_validate(sku, from_attributes=True)

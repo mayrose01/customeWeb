@@ -74,3 +74,8 @@ export function updateMallProductSku(id, data) {
 export function deleteMallProductSku(id) {
   return axios.delete(`/mall-specification/sku/${id}`);
 }
+
+// 获取产品中价格最高且有库存的SKU（用于快速加购）
+export function getBestSkuForProduct(productId) {
+  return axios.get(`/mall-product/${productId}/best-sku`);
+}

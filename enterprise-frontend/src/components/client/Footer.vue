@@ -27,7 +27,7 @@
           <ul class="nav-links">
             <li><router-link :to="getClientPath('/')">首页</router-link></li>
             <li><router-link :to="getClientPath('/all-products')">产品列表</router-link></li>
-            <!-- <li><router-link :to="getClientPath('/mall')">商城</router-link></li> -->
+            <li><router-link :to="getClientPath('/mall')">商城</router-link></li>
             <li><router-link :to="getClientPath('/about')">关于我们</router-link></li>
             <li><router-link :to="getClientPath('/contact')">联系我们</router-link></li>
           </ul>

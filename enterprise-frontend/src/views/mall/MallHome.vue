@@ -25,8 +25,16 @@
               class="category-card"
               @click="goToCategory(category.id)"
             >
-              <div class="category-icon">
-                <span>📦</span>
+              <div class="category-image">
+                <img 
+                  v-if="category.image && getImageUrl(category.image)"
+                  :src="getImageUrl(category.image)" 
+                  :alt="category.name"
+                  @error="handleImageError"
+                />
+                <div v-else class="category-icon">
+                  <span>📦</span>
+                </div>
               </div>
               <h3>{{ category.name }}</h3>
               <p>{{ category.description || '暂无描述' }}</p>
@@ -150,6 +158,10 @@ import ClientHeader from '@/components/client/Header.vue'
 import ClientFooter from '@/components/client/Footer.vue'
 import { getClientPath } from '@/utils/pathUtils'
 import { getImageUrl } from '@/utils/imageUtils'
+import { getMallProducts, getBestSkuForProduct } from '@/api/mall_product'
+import { getMallCategories } from '@/api/mall_category'
+import { addToCart as addToCartAPI } from '@/api/mall_cart'
+import { userStore } from '@/store/user'
 
 export default {
   name: 'MallHome',
@@ -167,57 +179,98 @@ export default {
     // 加载分类数据
     const loadCategories = async () => {
       try {
-        // TODO: 调用API加载商城分类
-        // const response = await getMallCategories()
-        // categories.value = response.data
-        
-        // 模拟数据
-        categories.value = [
-          { id: 1, name: '电子产品', description: '手机、电脑、配件等' },
-          { id: 2, name: '服装鞋帽', description: '男装、女装、童装等' },
-          { id: 3, name: '家居用品', description: '家具、装饰、厨具等' },
-          { id: 4, name: '美妆护肤', description: '护肤品、彩妆、香水等' }
-        ]
+        const response = await getMallCategories()
+        if (response.data) {
+          // 只显示启用的分类
+          categories.value = response.data.filter(cat => cat.status === 'active')
+        } else {
+          categories.value = []
+        }
       } catch (error) {
         console.error('加载分类失败:', error)
+        // 如果API失败，使用模拟数据
+        categories.value = [
+          { id: 1, name: '电子产品', description: '手机、电脑、配件等', status: 'active' },
+          { id: 2, name: '服装鞋帽', description: '男装、女装、童装等', status: 'active' },
+          { id: 3, name: '家居用品', description: '家具、装饰、厨具等', status: 'active' },
+          { id: 4, name: '美妆护肤', description: '护肤品、彩妆、香水等', status: 'active' }
+        ]
       }
     }
     
     // 加载热门产品
     const loadHotProducts = async () => {
       try {
-        // TODO: 调用API加载热门产品
-        // const response = await getMallHotProducts()
-        // hotProducts.value = response.data
+        // 获取上架的产品作为热门产品
+        const response = await getMallProducts({ status: 'active', limit: 4 })
         
-        // 模拟数据
-        hotProducts.value = [
-          { id: 1, title: '智能手机', price: 2999, images: [] },
-          { id: 2, title: '无线耳机', price: 299, images: [] },
-          { id: 3, title: '智能手表', price: 899, images: [] },
-          { id: 4, title: '蓝牙音箱', price: 199, images: [] }
-        ]
+        if (response.data && response.data.items) {
+          hotProducts.value = response.data.items.map(item => ({
+            ...item,
+            title: item.title,
+            price: item.base_price,
+            images: item.images || []
+          }))
+        } else if (Array.isArray(response.data)) {
+          hotProducts.value = response.data
+            .filter(item => item.status === 'active')
+            .slice(0, 4)
+            .map(item => ({
+              ...item,
+              title: item.title,
+              price: item.base_price,
+              images: item.images || []
+            }))
+        } else {
+          hotProducts.value = []
+        }
       } catch (error) {
         console.error('加载热门产品失败:', error)
+        // 如果API失败，使用模拟数据
+        hotProducts.value = [
+          { id: 1, title: '智能手机', price: 2999, images: [], status: 'active' },
+          { id: 2, title: '无线耳机', price: 299, images: [], status: 'active' },
+          { id: 3, title: '智能手表', price: 899, images: [], status: 'active' },
+          { id: 4, title: '蓝牙音箱', price: 199, images: [], status: 'active' }
+        ]
       }
     }
     
     // 加载新品
     const loadNewProducts = async () => {
       try {
-        // TODO: 调用API加载新品
-        // const response = await getMallNewProducts()
-        // newProducts.value = response.data
+        // 获取上架的产品作为新品（可以按创建时间排序）
+        const response = await getMallProducts({ status: 'active', limit: 4, sort: 'created_at' })
         
-        // 模拟数据
-        newProducts.value = [
-          { id: 5, title: '无线充电器', price: 89, images: [] },
-          { id: 6, title: '便携充电宝', price: 129, images: [] },
-          { id: 7, title: '手机支架', price: 39, images: [] },
-          { id: 8, title: '数据线', price: 29, images: [] }
-        ]
+        if (response.data && response.data.items) {
+          newProducts.value = response.data.items.map(item => ({
+            ...item,
+            title: item.title,
+            price: item.base_price,
+            images: item.images || []
+          }))
+        } else if (Array.isArray(response.data)) {
+          newProducts.value = response.data
+            .filter(item => item.status === 'active')
+            .slice(0, 4)
+            .map(item => ({
+              ...item,
+              title: item.title,
+              price: item.base_price,
+              images: item.images || []
+            }))
+        } else {
+          newProducts.value = []
+        }
       } catch (error) {
         console.error('加载新品失败:', error)
+        // 如果API失败，使用模拟数据
+        newProducts.value = [
+          { id: 5, title: '无线充电器', price: 89, images: [], status: 'active' },
+          { id: 6, title: '便携充电宝', price: 129, images: [], status: 'active' },
+          { id: 7, title: '手机支架', price: 39, images: [], status: 'active' },
+          { id: 8, title: '数据线', price: 29, images: [], status: 'active' }
+        ]
       }
     }
     
@@ -234,36 +287,86 @@ export default {
     // 加入购物车
     const addToCart = async (product) => {
       try {
-        // TODO: 检查用户是否登录
-        // if (!userStore.isLoggedIn) {
-        //   router.push(getClientPath('/login'))
-        //   return
-        // }
+        console.log('添加到购物车的产品:', product)
         
-        // TODO: 调用API添加到购物车
-        // await addToMallCart(product.id, 1)
+        // 检查产品ID是否存在
+        if (!product || !product.id) {
+          console.error('产品ID不存在:', product)
+          ElMessage.error('产品信息错误，无法添加到购物车')
+          return
+        }
+        
+        // 检查用户是否登录
+        if (!userStore.isLoggedIn || !userStore.userInfo) {
+          ElMessage.warning('请先登录')
+          router.push(getClientPath('/login'))
+          return
+        }
+        
+        const userId = userStore.userInfo.id
+        
+        // 获取产品中价格最高且有库存的SKU
+        const skuResponse = await getBestSkuForProduct(product.id)
+        const sku = skuResponse.data
+        
+        // 添加到购物车
+        const cartData = {
+          product_id: product.id,
+          sku_id: sku.id,
+          quantity: 1
+        }
+        
+        await addToCartAPI(userId, cartData)
         ElMessage.success('已添加到购物车')
       } catch (error) {
-        ElMessage.error('添加失败')
+        console.error('添加到购物车失败:', error)
+        if (error.response && error.response.status === 404) {
+          ElMessage.error('产品暂无可用库存')
+        } else {
+          ElMessage.error('添加失败')
+        }
       }
     }
     
     // 立即购买
-    const buyNow = (product) => {
+    const buyNow = async (product) => {
       try {
-        // TODO: 检查用户是否登录
-        // if (!userStore.isLoggedIn) {
-        //   router.push(getClientPath('/login'))
-        //   return
-        // }
+        console.log('立即购买的产品:', product)
         
-        // 跳转到结算页面
+        // 检查产品ID是否存在
+        if (!product || !product.id) {
+          console.error('产品ID不存在:', product)
+          ElMessage.error('产品信息错误，无法立即购买')
+          return
+        }
+        
+        // 检查用户是否登录
+        if (!userStore.isLoggedIn || !userStore.userInfo) {
+          ElMessage.warning('请先登录')
+          router.push(getClientPath('/login'))
+          return
+        }
+        
+        // 获取产品中价格最高且有库存的SKU
+        const skuResponse = await getBestSkuForProduct(product.id)
+        const sku = skuResponse.data
+        
+        // 跳转到结算页面，传递SKU信息
         router.push({
           path: getClientPath('/mall/checkout'),
-          query: { product_id: product.id, quantity: 1 }
+          query: { 
+            product_id: product.id, 
+            sku_id: sku.id,
+            quantity: 1 
+          }
         })
       } catch (error) {
-        ElMessage.error('操作失败')
+        console.error('立即购买失败:', error)
+        if (error.response && error.response.status === 404) {
+          ElMessage.error('产品暂无可用库存')
+        } else {
+          ElMessage.error('操作失败')
+        }
       }
     }
     
@@ -389,9 +492,32 @@ export default {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
+.category-image {
+  width: 100%;
+  height: 160px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .category-icon {
   font-size: 3rem;
-  margin-bottom: 20px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  color: #999;
 }
 
 .category-card h3 {

@@ -17,7 +17,8 @@ from app.api.endpoints import (
 
 # 导入商城相关路由
 from app.api.endpoints import (
-    mall_category, mall_product, mall_specification, mall_order
+    mall_category, mall_product, mall_specification, mall_order,
+    mall_cart, mall_address
 )
 
 # 导入数据库
@@ -113,6 +114,8 @@ app.include_router(mall_category.router, prefix="/api/mall-category", tags=["mal
 app.include_router(mall_product.router, prefix="/api/mall-product", tags=["mall-product"])
 app.include_router(mall_specification.router, prefix="/api/mall-specification", tags=["mall-specification"])
 app.include_router(mall_order.router, prefix="/api/mall-order", tags=["mall-order"])
+app.include_router(mall_cart.router, prefix="/api/mall-cart", tags=["mall-cart"])
+app.include_router(mall_address.router, prefix="/api/mall-address", tags=["mall-address"])
 
 # 启动事件
 @app.on_event("startup")
