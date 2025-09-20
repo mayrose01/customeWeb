@@ -18,10 +18,14 @@ COPY package*.json ./
 # 复制源代码
 COPY . .
 
-# 清理并重新安装所有依赖（包括devDependencies，因为构建需要vite）
-RUN rm -rf node_modules package-lock.json && npm install
+# 安装所有依赖（包括devDependencies，因为构建需要vite）
+RUN npm install --include=dev
 
-# 构建应用
+# 构建应用 - 根据构建参数设置环境
+ARG VITE_APP_ENV=production
+ARG VITE_API_BASE_URL
+ENV VITE_APP_ENV=${VITE_APP_ENV}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # 生产阶段
@@ -37,8 +41,8 @@ COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 创建非root用户（安全最佳实践）
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G appuser -g appuser appuser
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \

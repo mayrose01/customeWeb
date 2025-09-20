@@ -5,7 +5,9 @@ export const getApiBaseUrl = () => {
     const hostname = window.location.hostname
     const port = window.location.port
     
-    if (hostname === 'localhost' && (port === '3000' || port === '3001' || port === '3002' || port === '3003' || port === '3004' || port === '3005')) {
+    if (hostname === 'localhost' && port === '3001') {
+      return 'http://localhost:8001/api'
+    } else if (hostname === 'localhost' && (port === '3000' || port === '3002' || port === '3003' || port === '3004' || port === '3005')) {
       return 'http://localhost:8000/api'
     } else if (hostname === 'test.catusfoto.top') {
       return 'http://localhost:8001/api'

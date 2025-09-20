@@ -35,7 +35,7 @@ services:
       - "8001:8000"  # 测试环境使用不同端口
     environment:
       - ENVIRONMENT=testing
-      - DATABASE_URL=mysql+pymysql://test_user:test_password@mysql_test:3306/enterprise_test
+      - DATABASE_URL=mysql+pymysql://test_user:test_password@mysql_test:3306/enterprise_test?charset=utf8mb4
       - SECRET_KEY=test_enterprise_secret_key_2024
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -63,14 +63,13 @@ services:
 
   # 前端服务 - 测试环境配置
   frontend:
-    build:
-      context: ./enterprise-frontend
-      dockerfile: Dockerfile
+    image: enterprise-frontend:test
     container_name: enterprise_frontend_test
     ports:
       - "3001:80"  # 测试环境使用不同端口
     environment:
       - VITE_API_BASE_URL=http://localhost:8001/api
+      - VITE_APP_ENV=test
       - VITE_APP_TITLE=企业官网-测试环境
     volumes:
       # 测试环境挂载代码目录，支持热更新
