@@ -814,6 +814,10 @@ import {
   createMallProductSpecification,
   updateMallProductSpecification,
   deleteMallProductSpecification,
+  createMallProductSpecificationValue,
+  updateMallProductSpecificationValue,
+  deleteMallProductSpecificationValue,
+  deleteMallProductSpecificationValues,
   getMallProductSkus,
   createMallProductSku,
   updateMallProductSku,
@@ -1684,6 +1688,20 @@ export default {
               console.log('获取现有SKU失败:', skuError.message)
             }
             
+            // 获取现有的规格列表，用于同步
+            let existingSpecs = []
+            try {
+              const specsResponse = await getMallProductSpecifications(productId)
+              if (specsResponse.data && specsResponse.data.length > 0) {
+                existingSpecs = specsResponse.data
+              }
+            } catch (error) {
+              console.log('获取现有规格失败:', error.message)
+            }
+            
+            // 收集当前要保存的规格ID
+            const currentSpecIds = new Set()
+            
             // 保存规格组
             for (const spec of productForm.specifications) {
               if (spec.name && spec.values && spec.values.length > 0) {
@@ -1699,14 +1717,21 @@ export default {
                   // 如果是有效的数据库ID，更新现有规格
                   try {
                     savedSpec = await updateMallProductSpecification(spec.id, specData)
+                    currentSpecIds.add(spec.id)
                   } catch (updateError) {
                     console.log(`更新规格失败，尝试创建新规格: ${updateError.message}`)
                     // 如果更新失败，创建新规格
                     savedSpec = await createMallProductSpecification(specData)
+                    if (savedSpec && savedSpec.data && savedSpec.data.id) {
+                      currentSpecIds.add(savedSpec.data.id)
+                    }
                   }
                 } else {
                   // 如果是临时ID或无效ID，创建新的规格
                   savedSpec = await createMallProductSpecification(specData)
+                  if (savedSpec && savedSpec.data && savedSpec.data.id) {
+                    currentSpecIds.add(savedSpec.data.id)
+                  }
                 }
                 
                 // 保存规格值
@@ -1715,9 +1740,8 @@ export default {
                   
                   // 先删除旧的规格值
                   try {
-                    // TODO: 实现删除规格值API
-                    // await deleteMallProductSpecificationValues(specId)
-                    console.log('删除旧规格值功能待实现')
+                    await deleteMallProductSpecificationValues(specId)
+                    console.log(`删除规格 ${specId} 的旧规格值成功`)
                   } catch (deleteError) {
                     console.log('删除旧规格值失败:', deleteError.message)
                   }
@@ -1731,14 +1755,25 @@ export default {
                           value: value.trim(),
                           sort_order: 0
                         }
-                        // TODO: 实现创建规格值API
-                        // await createMallProductSpecificationValue(valueData)
-                        console.log('创建规格值功能待实现:', valueData)
+                        await createMallProductSpecificationValue(valueData)
+                        console.log('创建规格值成功:', valueData)
                       } catch (valueError) {
                         console.error('创建规格值失败:', valueError)
                       }
                     }
                   }
+                }
+              }
+            }
+            
+            // 删除不再需要的规格
+            for (const existingSpec of existingSpecs) {
+              if (!currentSpecIds.has(existingSpec.id)) {
+                try {
+                  await deleteMallProductSpecification(existingSpec.id)
+                  console.log(`删除不再需要的规格: ${existingSpec.id}`)
+                } catch (deleteError) {
+                  console.log('删除规格失败:', deleteError.message)
                 }
               }
             }

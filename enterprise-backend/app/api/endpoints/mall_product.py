@@ -102,3 +102,61 @@ def get_best_sku_for_product(product_id: int, db: Session = Depends(get_db)):
     if not sku:
         raise HTTPException(status_code=404, detail="产品暂无可用库存")
     return schemas.MallProductSKUOut.model_validate(sku, from_attributes=True)
+
+# 规格管理API
+@router.post("/specifications", response_model=schemas.MallProductSpecificationOut)
+def create_specification(data: schemas.MallProductSpecificationCreate, db: Session = Depends(get_db)):
+    """创建产品规格"""
+    spec = crud.create_mall_product_specification(db, data)
+    return schemas.MallProductSpecificationOut.model_validate(spec, from_attributes=True)
+
+@router.put("/specifications/{spec_id}", response_model=schemas.MallProductSpecificationOut)
+def update_specification(spec_id: int, data: schemas.MallProductSpecificationUpdate, db: Session = Depends(get_db)):
+    """更新产品规格"""
+    spec = crud.update_mall_product_specification(db, spec_id, data)
+    if not spec:
+        raise HTTPException(status_code=404, detail="规格不存在")
+    return schemas.MallProductSpecificationOut.model_validate(spec, from_attributes=True)
+
+@router.delete("/specifications/{spec_id}")
+def delete_specification(spec_id: int, db: Session = Depends(get_db)):
+    """删除产品规格"""
+    success = crud.delete_mall_product_specification(db, spec_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="规格不存在")
+    return {"ok": True, "message": "规格删除成功"}
+
+# 规格值管理API
+@router.post("/specification-values", response_model=schemas.MallProductSpecificationValueOut)
+def create_specification_value(data: schemas.MallProductSpecificationValueCreate, db: Session = Depends(get_db)):
+    """创建规格值"""
+    value = crud.create_mall_product_specification_value(db, data)
+    return schemas.MallProductSpecificationValueOut.model_validate(value, from_attributes=True)
+
+@router.put("/specification-values/{value_id}", response_model=schemas.MallProductSpecificationValueOut)
+def update_specification_value(value_id: int, data: schemas.MallProductSpecificationValueUpdate, db: Session = Depends(get_db)):
+    """更新规格值"""
+    value = crud.update_mall_product_specification_value(db, value_id, data)
+    if not value:
+        raise HTTPException(status_code=404, detail="规格值不存在")
+    return schemas.MallProductSpecificationValueOut.model_validate(value, from_attributes=True)
+
+@router.delete("/specification-values/{value_id}")
+def delete_specification_value(value_id: int, db: Session = Depends(get_db)):
+    """删除规格值"""
+    success = crud.delete_mall_product_specification_value(db, value_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="规格值不存在")
+    return {"ok": True, "message": "规格值删除成功"}
+
+@router.delete("/specifications/{spec_id}/values")
+def delete_specification_values(spec_id: int, db: Session = Depends(get_db)):
+    """删除规格的所有值"""
+    # 获取规格的所有值
+    values = crud.get_mall_product_specification_values(db, spec_id)
+    deleted_count = 0
+    for value in values:
+        if crud.delete_mall_product_specification_value(db, value.id):
+            deleted_count += 1
+    
+    return {"ok": True, "message": f"删除了 {deleted_count} 个规格值"}

@@ -42,17 +42,37 @@ export function getMallProductSpecifications(productId) {
 
 // 创建商城产品规格
 export function createMallProductSpecification(data) {
-  return axios.post('/mall-specification/', data);
+  return axios.post('/mall-product/specifications', data);
 }
 
 // 更新商城产品规格
 export function updateMallProductSpecification(id, data) {
-  return axios.put(`/mall-specification/${id}`, data);
+  return axios.put(`/mall-product/specifications/${id}`, data);
 }
 
 // 删除商城产品规格
 export function deleteMallProductSpecification(id) {
-  return axios.delete(`/mall-specification/${id}`);
+  return axios.delete(`/mall-product/specifications/${id}`);
+}
+
+// 创建规格值
+export function createMallProductSpecificationValue(data) {
+  return axios.post('/mall-product/specification-values', data);
+}
+
+// 更新规格值
+export function updateMallProductSpecificationValue(id, data) {
+  return axios.put(`/mall-product/specification-values/${id}`, data);
+}
+
+// 删除规格值
+export function deleteMallProductSpecificationValue(id) {
+  return axios.delete(`/mall-product/specification-values/${id}`);
+}
+
+// 删除规格的所有值
+export function deleteMallProductSpecificationValues(specId) {
+  return axios.delete(`/mall-product/specifications/${specId}/values`);
 }
 
 // 获取商城产品SKU列表
